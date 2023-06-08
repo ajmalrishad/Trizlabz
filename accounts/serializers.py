@@ -11,11 +11,11 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'phone', 'password']
+        fields = ['user_id', 'username', 'email', 'phone', 'password']
 
     def validate(self, attrs):
-        email = attrs.get('email', '')
         username = attrs.get('username', '')
+        email = attrs.get('email', '')
         phone = attrs.get('phone', '')
         if not username.isalnum():
             raise serializers.ValidationError(
@@ -40,7 +40,7 @@ class LoginSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = [ 'username', 'password', 'tokens']
+        fields = ['username', 'password', 'tokens']
 
     def validate(self, attrs):
         username = attrs.get('username', '')
@@ -51,8 +51,9 @@ class LoginSerializer(serializers.ModelSerializer):
         if not user.is_active:
             raise AuthenticationFailed('Account disabled, contact admin')
         return {
-            'email': user.email,
+            'user_id': user.user_id,
             'username': user.username,
+            'email': user.email,
             'phone': user.phone,
             'tokens': user.tokens
         }
@@ -70,3 +71,9 @@ class LogoutSerializer(serializers.Serializer):
             RefreshToken(self.token).blacklist()
         except TokenError:
             self.fail('bad_token')
+
+
+class GetUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['user_id', 'username', 'email', 'phone']
