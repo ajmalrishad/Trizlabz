@@ -1,6 +1,7 @@
 from django.contrib import auth
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
@@ -11,7 +12,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['user_id', 'username', 'email', 'phone', 'password']
+        fields = ['id', 'user_id', 'username', 'email', 'phone', 'password']
 
     def validate(self, attrs):
         username = attrs.get('username', '')
@@ -29,33 +30,37 @@ class RegisterSerializer(serializers.ModelSerializer):
 class LoginSerializer(serializers.ModelSerializer):
     password = serializers.CharField(max_length=68, min_length=6, write_only=True)
     username = serializers.CharField(max_length=255, min_length=3)
+    role = serializers.CharField(source='get_role', read_only=True)
     tokens = serializers.SerializerMethodField()
 
     def get_tokens(self, obj):
         user = User.objects.get(username=obj['username'])
+
         return {
+            'role': user.role,
             'refresh': user.tokens()['refresh'],
             'access': user.tokens()['access']
         }
 
+    def get_role(self, obj):
+        return obj.role
+
     class Meta:
         model = User
-        fields = ['username', 'password', 'tokens']
+        fields = ['username', 'password', 'role', 'tokens']
 
     def validate(self, attrs):
         username = attrs.get('username', '')
         password = attrs.get('password', '')
+        role = attrs.get('role', '')
         user = auth.authenticate(username=username, password=password)
         if not user:
             raise AuthenticationFailed('Invalid credentials, try again')
         if not user.is_active:
             raise AuthenticationFailed('Account disabled, contact admin')
         return {
-            'user_id': user.user_id,
-            'username': user.username,
-            'email': user.email,
-            'phone': user.phone,
-            'tokens': user.tokens
+            'username': username,
+            'role': role,
         }
 
 

@@ -17,7 +17,13 @@ class RegisterView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         user_data = serializer.data
-        return Response(user_data, status=status.HTTP_201_CREATED)
+        user_data['role'] = serializer.instance.role
+        message = "User created successfully."
+        response_data = {
+            'message': message,
+            'data': user_data
+        }
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class LoginAPIView(generics.GenericAPIView):
@@ -26,7 +32,13 @@ class LoginAPIView(generics.GenericAPIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        user_data = serializer.data
+        message = "User logged in successfully"
+        response_data = {
+            'message': message,
+            'data': user_data
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class LogoutAPIView(APIView):
