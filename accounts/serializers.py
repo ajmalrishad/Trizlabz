@@ -1,23 +1,22 @@
 from django.contrib import auth
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from .models import User
 
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(max_length=68, min_length=6, write_only=True)
+    cloud_password = serializers.CharField(max_length=100, min_length=6, write_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'user_id', 'username', 'email', 'phone', 'password']
+        fields = ['id', 'user_id', 'name', 'username', 'email', 'phone', 'profile_image', 'role', 'trizlabz_user',
+                  'password', 'cloud_username', 'cloud_password']
 
     def validate(self, attrs):
         username = attrs.get('username', '')
-        email = attrs.get('email', '')
-        phone = attrs.get('phone', '')
         if not username.isalnum():
             raise serializers.ValidationError(
                 self.default_error_messages)
@@ -37,7 +36,6 @@ class LoginSerializer(serializers.ModelSerializer):
         user = User.objects.get(username=obj['username'])
 
         return {
-            'role': user.role,
             'refresh': user.tokens()['refresh'],
             'access': user.tokens()['access']
         }
@@ -64,8 +62,12 @@ class LoginSerializer(serializers.ModelSerializer):
         }
 
 
-class LogoutSerializer(serializers.Serializer):
+class RefreshTokenSerializer(serializers.Serializer):
     refresh = serializers.CharField()
+
+    default_error_messages = {
+        'bad_token': ('Token is invalid or expired')
+    }
 
     def validate(self, attrs):
         self.token = attrs['refresh']
@@ -81,4 +83,20 @@ class LogoutSerializer(serializers.Serializer):
 class GetUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['user_id', 'username', 'email', 'phone']
+        fields = ['id', 'user_id', 'name', 'username', 'email', 'phone', 'profile_image', 'role', 'trizlabz_user',
+                  'cloud_username']
+
+
+class UpdateUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'user_id', 'name', 'username', 'email', 'phone', 'profile_image', 'role', 'trizlabz_user',
+                  'cloud_username']
+        password = serializers.CharField(max_length=68, min_length=6, write_only=True)
+        cloud_password = serializers.CharField(max_length=100, min_length=6, write_only=True)
+
+
+class DeleteUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'user_id', 'email']
