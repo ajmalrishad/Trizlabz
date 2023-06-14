@@ -4,9 +4,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken, OutstandingToken
 
-from .models import User
+from .models import User, Role
 from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer, UpdateUserSerializer, \
-    DeleteUserSerializer
+    DeleteUserSerializer, RoleSerializer, RoleUpdateSerializer
 
 
 # Create user.
@@ -105,3 +105,58 @@ class DeleteUsersAPIView(generics.GenericAPIView):
             return Response({'message': 'User deleted successfully'})
         except User.DoesNotExist:
             return Response({'message': 'User not found'}, status=404)
+
+
+class CreateRoleView(generics.GenericAPIView):
+    def post(self, request):
+        serializer = RoleSerializer(data=request.data)
+        if serializer.is_valid():
+            role_name = serializer.validated_data['role_name']
+
+            # Check if a role with the same role_name already exists
+            if Role.objects.filter(role_name=role_name).exists():
+                return Response({'message': 'Role with the same name already exists.'}, status=400)
+
+            role = serializer.save()
+            return Response(RoleSerializer(role).data, status=201)
+        return Response(serializer.errors, status=400)
+
+
+class RoleUpdateView(generics.GenericAPIView):
+    def put(self, request, role_id):
+        try:
+            role = Role.objects.get(id=role_id)
+        except Role.DoesNotExist:
+            return Response({'message': 'Role not found.'}, status=404)
+
+        serializer = RoleUpdateSerializer(role, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+
+class RoleDeleteView(generics.GenericAPIView):
+    def delete(self, request, role_id):
+        try:
+            role = Role.objects.get(id=role_id)
+        except Role.DoesNotExist:
+            return Response({'message': 'Role not found.'}, status=404)
+
+        role.delete()
+        return Response({'message': 'Role deleted successfully.'}, status=200)
+
+
+class GetRoleAPIView(generics.GenericAPIView):
+    def get(self, request, role_id=None):
+        if role_id is not None:
+            try:
+                role = Role.objects.get(id=role_id)
+                serializer = RoleSerializer(role)
+                return Response(serializer.data, status=200)
+            except Role.DoesNotExist:
+                return Response({'message': 'Role not found.'}, status=404)
+
+        roles = Role.objects.all()
+        serializer = RoleSerializer(roles, many=True)
+        return Response({'message': 'success'}, serializer.data, status=200)

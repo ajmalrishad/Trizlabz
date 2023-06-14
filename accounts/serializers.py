@@ -3,7 +3,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
-from .models import User
+from .models import User, Role
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -100,3 +100,15 @@ class DeleteUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'user_id', 'email']
+
+
+class RoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Role
+        fields = ['id', 'role_name', 'trizlabz_role', 'administration', 'customer_management', 'setup']
+
+
+class RoleUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Role
+        fields = ['role_name', 'trizlabz_role', 'administration', 'customer_management', 'setup']
