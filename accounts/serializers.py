@@ -3,7 +3,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
-from .models import User, Role
+from .models import User, Role, Customer, Privilege
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -12,8 +12,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'user_id', 'name', 'username', 'email', 'phone', 'profile_image', 'role', 'trizlabz_user',
-                  'password', 'cloud_username', 'cloud_password']
+        fields = '__all__'
 
     def validate(self, attrs):
         username = attrs.get('username', '')
@@ -83,8 +82,7 @@ class RefreshTokenSerializer(serializers.Serializer):
 class GetUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'user_id', 'name', 'username', 'email', 'phone', 'profile_image', 'role', 'trizlabz_user',
-                  'cloud_username']
+        fields = '__all__'
 
 
 class UpdateUserSerializer(serializers.ModelSerializer):
@@ -102,13 +100,30 @@ class DeleteUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'user_id', 'email']
 
 
+class PrivilegeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Privilege
+        fields = ('administration', 'customer_management', 'setup')
+
 class RoleSerializer(serializers.ModelSerializer):
+    privileges = PrivilegeSerializer(many=True)
+
     class Meta:
         model = Role
-        fields = ['id', 'role_name', 'trizlabz_role', 'administration', 'customer_management', 'setup']
+        fields = ('role_name', 'trizlabz_role', 'privileges')
+
+    def create(self, validated_data):
+        privileges_data = validated_data.pop('privileges')
+        role = Role.objects.create(**validated_data)
+
+        for privilege_data in privileges_data:
+            Privilege.objects.create(role=role, **privilege_data)
+
+        return role
 
 
-class RoleUpdateSerializer(serializers.ModelSerializer):
+
+class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Role
-        fields = ['role_name', 'trizlabz_role', 'administration', 'customer_management', 'setup']
+        model = Customer
+        fields = '__all__'

@@ -4,7 +4,8 @@ from rest_framework_simplejwt.views import (
 )
 
 from . import views
-from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, CreateRoleView, RoleUpdateView, RoleDeleteView,GetRoleAPIView
+from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, CreateRoleView, RoleUpdateView, \
+    RoleDeleteView, GetRoleAPIView, CustomerCreateView, GetCustomerAPIView, UpdateCustomerAPIView, DeleteCustomerAPIView
 
 urlpatterns = [
     path('register', views.RegisterView.as_view(), name="register"),
@@ -16,7 +17,12 @@ urlpatterns = [
     path('update_user/<int:pk>', UpdateUsersAPIView.as_view(), name='update_user'),
     path('delete_user/<int:pk>', DeleteUsersAPIView.as_view(), name='delete_user'),
     path('add_role', CreateRoleView.as_view(), name='add_role'),
-    path('get_role/<int:role_id>', GetRoleAPIView.as_view(), name='get_role'),
+    path('get_role', GetRoleAPIView.as_view(), name='role-list'),
     path('update_role/<int:role_id>', RoleUpdateView.as_view(), name='update_role'),
     path('delete_role/<int:role_id>', RoleDeleteView.as_view(), name='role-delete'),
+    path('addcustomer', CustomerCreateView.as_view(), name='customer-create'),
+    path('getcustomer', GetCustomerAPIView.as_view(), name='customer-get'),
+    path('updatecustomer/<int:id>', UpdateCustomerAPIView.as_view(), name='customer-update'),
+    path('deletecustomer/<int:id>', DeleteCustomerAPIView.as_view(), name='customer-delete'),
+
 ]

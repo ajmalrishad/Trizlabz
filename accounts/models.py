@@ -2,10 +2,32 @@ import uuid
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import AutoField
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
 # Create your models here.
+class Customer(models.Model):
+    customer_name = models.CharField(max_length=100)
+    address_line1 = models.CharField(max_length=100)
+    address_line2 = models.CharField(max_length=100)
+    profile_image = models.URLField(blank=True)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=100)
+    phone = models.CharField(max_length=20)
+    mobile = models.CharField(max_length=20)
+    spoc = models.CharField(max_length=100)
+    email = models.EmailField()
+    gst = models.CharField(max_length=20)
+    tenetid = models.CharField(max_length=20)
+    cloud_userName = models.CharField(max_length=100)
+    cloud_password = models.CharField(max_length=100)
+    customer_status =models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
+
+    def __str__(self):
+        return self.customer_name
 class User(AbstractUser):
     class Role(models.TextChoices):
         OPERATOR = "Operator"
@@ -16,7 +38,6 @@ class User(AbstractUser):
     # base_role = Role.OPERATOR
     username = models.CharField(max_length=200, null=False, unique=True)
     name = models.CharField(max_length=200, null=True)
-    user_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     email = models.EmailField(max_length=255, unique=True)
     phone = models.CharField(max_length=20, unique=True)
     profile_image = models.URLField(max_length=500, null=True)
@@ -25,6 +46,10 @@ class User(AbstractUser):
     tenet_id = models.CharField(max_length=200, null=True)
     cloud_username = models.CharField(max_length=200, null=True)
     cloud_password = models.CharField(max_length=200, null=True)
+    customer_id = models.OneToOneField(Customer, on_delete=models.CASCADE,null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
+
 
     def tokens(self):
         refresh = RefreshToken.for_user(self)
@@ -36,7 +61,19 @@ class User(AbstractUser):
 
 class Role(models.Model):
     role_name = models.CharField(max_length=100)
-    trizlabz_role = models.BooleanField(null=True)
-    administration = models.BooleanField(null=True)
-    customer_management = models.BooleanField(null=True)
-    setup = models.BooleanField(null=True)
+    trizlabz_role = models.BooleanField(default=False)
+    role_status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
+
+
+class Privilege(models.Model):
+    role = models.ForeignKey(Role, related_name='privileges', on_delete=models.CASCADE)
+    administration = models.BooleanField(default=False)
+    customer_management = models.BooleanField(default=False)
+    setup = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
+
+
+
