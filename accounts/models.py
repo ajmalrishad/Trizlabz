@@ -1,8 +1,5 @@
-import uuid
-
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.db.models import AutoField
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
@@ -22,12 +19,14 @@ class Customer(models.Model):
     tenetid = models.CharField(max_length=20)
     cloud_userName = models.CharField(max_length=100)
     cloud_password = models.CharField(max_length=100)
-    customer_status =models.BooleanField(default=True)
+    customer_status = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
 
     def __str__(self):
         return self.customer_name
+
+
 class User(AbstractUser):
     class Role(models.TextChoices):
         OPERATOR = "Operator"
@@ -46,10 +45,9 @@ class User(AbstractUser):
     tenet_id = models.CharField(max_length=200, null=True)
     cloud_username = models.CharField(max_length=200, null=True)
     cloud_password = models.CharField(max_length=200, null=True)
-    customer_id = models.OneToOneField(Customer, on_delete=models.CASCADE,null=True, blank=True)
+    customer_id = models.OneToOneField(Customer, on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
-
 
     def tokens(self):
         refresh = RefreshToken.for_user(self)
@@ -76,4 +74,25 @@ class Privilege(models.Model):
     updated_at = models.DateTimeField(auto_now=True, null=False)
 
 
+class Variant(models.Model):
+    variant_id = models.AutoField(primary_key=True)
+    variant_name = models.CharField(max_length=255)
+    variant_description = models.TextField()
+    variant_status = models.BooleanField(default=True)
 
+    def __str__(self):
+        return self.variant_name
+
+
+class Attachment(models.Model):
+    variant = models.ForeignKey(Variant, related_name='attachment_option', on_delete=models.CASCADE)
+    attachment_id = models.CharField(max_length=255)
+    attachment_name = models.CharField(max_length=255)
+    attachment_status = models.BooleanField(default=True)
+
+
+class Sensor(models.Model):
+    variant = models.ForeignKey(Variant, related_name='sensor_option', on_delete=models.CASCADE)
+    sensor_id = models.CharField(max_length=255)
+    sensor_name = models.CharField(max_length=255)
+    sensor_status = models.BooleanField(default=True)

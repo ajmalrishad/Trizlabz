@@ -4,9 +4,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken, OutstandingToken
 
-from .models import User, Role, Customer
+from .models import User, Role, Customer, Variant
 from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer, UpdateUserSerializer, \
-    DeleteUserSerializer, RoleSerializer, CustomerSerializer
+    DeleteUserSerializer, RoleSerializer, CustomerSerializer, VariantSerializer
 
 
 # Create user.
@@ -321,3 +321,91 @@ class DeleteCustomerAPIView(generics.DestroyAPIView):
 
         customer.delete()
         return Response({'message': 'customer deleted successfully.'}, status=200)
+
+
+class AddVariantCreateView(generics.CreateAPIView):
+    queryset = Variant.objects.all()
+    serializer_class = VariantSerializer
+
+    def post(self, request):
+        serializer = VariantSerializer(data=request.data)
+        if serializer.is_valid():
+            variant_name = serializer.validated_data['variant_name']
+
+            # Check if a role with the same role_name already exists
+            if Variant.objects.filter(variant_name=variant_name).exists():
+                return Response({'message': 'Variant with the same name already exists.'}, status=400)
+
+            variant = serializer.save()
+            return Response(VariantSerializer(variant).data, status=201)
+        return Response(serializer.errors, status=400)
+
+
+class GetVariantAPIView(generics.ListAPIView):
+    queryset = Variant.objects.all()
+    serializer_class = VariantSerializer
+
+    def get(self, request, *args, **kwargs):
+        # Get query parameters
+        variant_id = self.request.query_params.get('variant_id')
+        variant_name = self.request.query_params.get('variant_name')
+        variant_status = self.request.query_params.get('variant_status')
+
+        if variant_id:
+            try:
+                variant = Variant.objects.get(variant_id=variant_id)
+                serializer = self.get_serializer(variant)
+                response_data = {
+                    'message': 'Variant retrieved successfully',
+                    'status': 'success',
+                    'data': serializer.data
+                }
+                return Response(response_data, status=200)
+            except Variant.DoesNotExist:
+                return Response({'message': 'Variant not found.'}, status=404)
+
+        if variant_name and variant_status:
+            variants = self.queryset.filter(variant_name=variant_name, variant_status=variant_status)
+        elif variant_name:
+            variants = self.queryset.filter(variant_name=variant_name)
+        elif variant_status:
+            variants = self.queryset.filter(variant_status=variant_status)
+        else:
+            variants = self.get_queryset()
+
+        serializer = self.get_serializer(variants, many=True)
+        response_data = {
+            'message': 'Variants listing successfully',
+            'status': 'success',
+            'data': serializer.data
+        }
+        return Response(response_data, status=200)
+
+
+class UpdateVariantAPIView(generics.UpdateAPIView):
+    queryset = Variant.objects.all()
+    serializer_class = VariantSerializer
+    lookup_field = 'variant_id'
+
+    def put(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        response_data = {
+            'message': 'Variant Updated successfully',
+            'status': 'success',
+            'data': serializer.data
+        }
+        return Response(response_data)
+
+
+class DeleteVariantAPIView(generics.DestroyAPIView):
+    def delete(self, request, variant_id):
+        try:
+            variant = Variant.objects.get(variant_id=variant_id)
+        except Variant.DoesNotExist:
+            return Response({'message': 'Variant not found.'}, status=404)
+
+        variant.delete()
+        return Response({'message': 'Variant deleted successfully.'}, status=200)
