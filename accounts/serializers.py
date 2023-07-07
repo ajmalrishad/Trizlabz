@@ -132,13 +132,13 @@ class CustomerSerializer(serializers.ModelSerializer):
 class AttachmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Attachment
-        fields = ['attachment_id', 'attachment_name']
+        fields = '__all__'
 
 
 class SensorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sensor
-        fields = ['sensor_id', 'sensor_name']
+        fields = '__all__'
 
 
 class VariantSerializer(serializers.ModelSerializer):
@@ -147,7 +147,7 @@ class VariantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Variant
-        fields = ['variant_id','variant_name', 'variant_description', 'attachment_option', 'sensor_option']
+        fields = ['variant_id', 'variant_name', 'variant_description', 'attachment_option', 'sensor_option']
 
     def create(self, validated_data):
         attachment_data = validated_data.pop('attachment_option')

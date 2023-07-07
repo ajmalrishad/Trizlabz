@@ -85,14 +85,24 @@ class Variant(models.Model):
 
 
 class Attachment(models.Model):
-    variant = models.ForeignKey(Variant, related_name='attachment_option', on_delete=models.CASCADE)
-    attachment_id = models.CharField(max_length=255)
+    attachment_id = models.AutoField(primary_key=True)
     attachment_name = models.CharField(max_length=255)
     attachment_status = models.BooleanField(default=True)
 
 
 class Sensor(models.Model):
-    variant = models.ForeignKey(Variant, related_name='sensor_option', on_delete=models.CASCADE)
-    sensor_id = models.CharField(max_length=255)
+    sensor_id = models.AutoField(primary_key=True)
     sensor_name = models.CharField(max_length=255)
     sensor_status = models.BooleanField(default=True)
+
+
+class Attachment_or_Sensor(models.Model):
+    ATTACHMENT_OR_SENSOR_CHOICES = (
+        (1, 'Attachment'),
+        (2, 'Sensor'),
+    )
+
+    attachment = models.ForeignKey(Attachment, on_delete=models.CASCADE, related_name='attachment_or_sensor')
+    variant = models.ForeignKey(Variant, on_delete=models.CASCADE, related_name='attachment_or_sensor')
+    attachment_or_sensor = models.IntegerField(choices=ATTACHMENT_OR_SENSOR_CHOICES)
+

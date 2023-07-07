@@ -4,12 +4,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken, OutstandingToken
 
-from .models import User, Role, Customer, Variant
+from .models import User, Role, Customer, Variant, Sensor, Attachment
 from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer, UpdateUserSerializer, \
-    DeleteUserSerializer, RoleSerializer, CustomerSerializer, VariantSerializer
+    DeleteUserSerializer, RoleSerializer, CustomerSerializer, VariantSerializer, SensorSerializer, AttachmentSerializer
 
 
-# Create user.
+# User Management Apis
 class RegisterView(generics.GenericAPIView):
     serializer_class = RegisterSerializer
 
@@ -156,6 +156,7 @@ class DeleteUsersAPIView(generics.GenericAPIView):
             return Response({'message': 'User not found'}, status=404)
 
 
+# Role Management Apis
 class CreateRoleView(generics.GenericAPIView):
     def post(self, request):
         serializer = RoleSerializer(data=request.data)
@@ -240,6 +241,7 @@ class GetRoleAPIView(generics.ListAPIView):
         return Response(response_data, status=200)
 
 
+# Customer Management Apis
 class CustomerCreateView(generics.CreateAPIView):
     serializer_class = CustomerSerializer
 
@@ -323,6 +325,7 @@ class DeleteCustomerAPIView(generics.DestroyAPIView):
         return Response({'message': 'customer deleted successfully.'}, status=200)
 
 
+# Variant Management Apis
 class AddVariantCreateView(generics.CreateAPIView):
     queryset = Variant.objects.all()
     serializer_class = VariantSerializer
@@ -409,3 +412,41 @@ class DeleteVariantAPIView(generics.DestroyAPIView):
 
         variant.delete()
         return Response({'message': 'Variant deleted successfully.'}, status=200)
+
+
+class SensorCreateView(generics.GenericAPIView):
+    def post(self, request):
+        serializer = SensorSerializer(data=request.data)
+        if serializer.is_valid():
+            sensor_id = serializer.validated_data['sensor_id']
+            if Sensor.objects.filter(sensor_id=sensor_id).exists():
+                return Response(
+                    {"message": "A sensor with the same id already exists."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            serializer.save()
+            message = {
+                "message": "Sensor Added Successfully",
+                "data": serializer.data
+            }
+            return Response(message, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AttachmentCreateView(generics.GenericAPIView):
+    def post(self, request):
+        serializer = AttachmentSerializer(data=request.data)
+        if serializer.is_valid():
+            attachment_id = serializer.validated_data.get('attachment_id')
+            if attachment_id is not None and Attachment.objects.filter(attachment_id=attachment_id).exists():
+                return Response(
+                    {"message": "An attachment with the same ID already exists."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            serializer.save()
+            message = {
+                "message": "Attachment Added Successfully",
+                "data": serializer.data
+            }
+            return Response(message, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

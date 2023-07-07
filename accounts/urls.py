@@ -6,7 +6,8 @@ from rest_framework_simplejwt.views import (
 from . import views
 from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, CreateRoleView, RoleUpdateView, \
     RoleDeleteView, GetRoleAPIView, CustomerCreateView, GetCustomerAPIView, UpdateCustomerAPIView, \
-    DeleteCustomerAPIView, AddVariantCreateView, GetVariantAPIView, UpdateVariantAPIView, DeleteVariantAPIView
+    DeleteCustomerAPIView, AddVariantCreateView, GetVariantAPIView, UpdateVariantAPIView, DeleteVariantAPIView, \
+    SensorCreateView, AttachmentCreateView
 
 urlpatterns = [
     path('register', views.RegisterView.as_view(), name="register"),
@@ -26,8 +27,11 @@ urlpatterns = [
     path('updatecustomer/<int:id>', UpdateCustomerAPIView.as_view(), name='customer-update'),
     path('deletecustomer/<int:id>', DeleteCustomerAPIView.as_view(), name='customer-delete'),
     path('addvariant', AddVariantCreateView.as_view(), name='addvariant'),
-    path('getvariant', GetVariantAPIView.as_view(), name='varinat-get'),
+    path('getvariant', GetVariantAPIView.as_view(), name='variant-get'),
     path('updatevariant/<int:variant_id>', UpdateVariantAPIView.as_view(), name='variant-update'),
     path('deletevariant/<int:variant_id>', DeleteVariantAPIView.as_view(), name='variant-delete'),
+    path('addsensor', SensorCreateView.as_view(), name='add-sensor'),
+    path('addattachment', AttachmentCreateView.as_view(), name='add-attachment')
+
 
 ]
