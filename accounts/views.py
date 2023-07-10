@@ -4,9 +4,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken, OutstandingToken
 
-from .models import User, Role, Customer, Variant, Sensor, Attachment
+from .models import User, Role, Customer, Variant, Attachment_or_Sensor_Master, Variant_or_Attachment_or_Sensor
 from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer, UpdateUserSerializer, \
-    DeleteUserSerializer, RoleSerializer, CustomerSerializer, VariantSerializer, SensorSerializer, AttachmentSerializer
+    DeleteUserSerializer, RoleSerializer, CustomerSerializer, VariantSerializer, Attachment_SensorSerializer
 
 
 # User Management Apis
@@ -325,24 +325,245 @@ class DeleteCustomerAPIView(generics.DestroyAPIView):
         return Response({'message': 'customer deleted successfully.'}, status=200)
 
 
+# class SensorCreateView(generics.GenericAPIView):
+#     def post(self, request):
+#         serializer = Attachment_SensorSerializer(data=request.data)
+#         if serializer.is_valid():
+#             name = serializer.validated_data['name']
+#             if Attachment_or_Sensor_Master.objects.filter(name=name).exists():
+#                 return Response(
+#                     {"message": "A Sensor with the same name already exists."},
+#                     status=status.HTTP_400_BAD_REQUEST
+#                 )
+#             serializer.save()
+#             message = {
+#                 "message": "Sensor Added Successfully",
+#                 "data": serializer.data
+#             }
+#             return Response(message, status=status.HTTP_201_CREATED)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# update Sensor
+# class UpdateSensorAPIView(generics.UpdateAPIView):
+#     queryset = Sensor.objects.all()
+#     serializer_class = SensorSerializer
+#     lookup_field = 'sensor_id'
+#
+#     def put(self, request, *args, **kwargs):
+#         instance = self.get_object()
+#         serializer = self.get_serializer(instance, data=request.data, partial=True)
+#         serializer.is_valid(raise_exception=True)
+#         self.perform_update(serializer)
+#         response_data = {
+#             'message': 'Sensor Updated successfully',
+#             'status': 'success',
+#             'data': serializer.data
+#         }
+#         return Response(response_data)
+#
+#
+# # Get Sensor
+# class GetSensorAPIView(generics.ListAPIView):
+#     queryset = Sensor.objects.all()
+#     serializer_class = SensorSerializer
+#
+#     def get(self, request, *args, **kwargs):
+#         # Get query parameters
+#         sensor_id = self.request.query_params.get('sensor_id')
+#         sensor_name = self.request.query_params.get('sensor_name')
+#         sensor_status = self.request.query_params.get('sensor_status')
+#
+#         if sensor_id:
+#             try:
+#                 sensor = Sensor.objects.get(sensor_id=sensor_id)
+#                 serializer = self.get_serializer(sensor)
+#                 response_data = {
+#                     'message': 'Sensor retrieved successfully',
+#                     'status': 'success',
+#                     'data': serializer.data
+#                 }
+#                 return Response(response_data, status=200)
+#             except Sensor.DoesNotExist:
+#                 return Response({'message': 'Sensor not found.'}, status=404)
+#
+#         if sensor_name and sensor_status:
+#             sensors = self.queryset.filter(sensor_name=sensor_name, sensor_status=sensor_status)
+#         elif sensor_name:
+#             sensors = self.queryset.filter(sensor_name=sensor_name)
+#         elif sensor_status:
+#             sensors = self.queryset.filter(sensor_status=sensor_status)
+#         else:
+#             sensors = self.get_queryset()
+#
+#         serializer = self.get_serializer(sensors, many=True)
+#         response_data = {
+#             'message': 'Sensor listing successfully',
+#             'status': 'success',
+#             'data': serializer.data
+#         }
+#         return Response(response_data, status=200)
+#
+#
+# # Delete Sensor
+# class DeleteSensorAPIView(generics.DestroyAPIView):
+#     def delete(self, request, sensor_id):
+#         try:
+#             sensor = Sensor.objects.get(sensor_id=sensor_id)
+#         except Sensor.DoesNotExist:
+#             return Response({'message': 'Sensor not found.'}, status=404)
+#
+#         sensor.delete()
+#         return Response({'message': 'Sensor deleted successfully.'}, status=200)
+
+
+class Attachment_Sensor_CreateView(generics.GenericAPIView):
+    def post(self, request):
+        serializer = Attachment_SensorSerializer(data=request.data)
+        if serializer.is_valid():
+            name = serializer.validated_data.get('name')
+            if name is not None and Attachment_or_Sensor_Master.objects.filter(name=name).exists():
+                return Response(
+                    {"message": "An attachment or sensor with the same name already exists."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            serializer.save()
+            message = {
+                "message": "Attachment or Sensor Added Successfully",
+                "data": serializer.data
+            }
+            return Response(message, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# upadte Attachment
+# class UpdateAttachmentAPIView(generics.UpdateAPIView):
+#     queryset = Attachment.objects.all()
+#     serializer_class = AttachmentSerializer
+#     lookup_field = 'attachment_id'
+#
+#     def put(self, request, *args, **kwargs):
+#         instance = self.get_object()
+#         serializer = self.get_serializer(instance, data=request.data, partial=True)
+#         serializer.is_valid(raise_exception=True)
+#         self.perform_update(serializer)
+#         response_data = {
+#             'message': 'Attachment Updated successfully',
+#             'status': 'success',
+#             'data': serializer.data
+#         }
+#         return Response(response_data)
+#
+#
+# # Get Attachment
+# class GetAttachmentAPIView(generics.ListAPIView):
+#     queryset = Attachment.objects.all()
+#     serializer_class = AttachmentSerializer
+#
+#     def get(self, request, *args, **kwargs):
+#         # Get query parameters
+#         attachment_id = self.request.query_params.get('attachment_id')
+#         attachment_name = self.request.query_params.get('attachment_name')
+#         attachment_status = self.request.query_params.get('attachment_status')
+#
+#         if attachment_id:
+#             try:
+#                 attachment = Attachment.objects.get(attachment_id=attachment_id)
+#                 serializer = self.get_serializer(attachment)
+#                 response_data = {
+#                     'message': 'Attachment retrieved successfully',
+#                     'status': 'success',
+#                     'data': serializer.data
+#                 }
+#                 return Response(response_data, status=200)
+#             except Attachment.DoesNotExist:
+#                 return Response({'message': 'Attachment not found.'}, status=404)
+#
+#         if attachment_name and attachment_status:
+#             attachments = self.queryset.filter(attachment_name=attachment_name, attachment_status=attachment_status)
+#         elif attachment_name:
+#             attachments = self.queryset.filter(attachment_name=attachment_name)
+#         elif attachment_status:
+#             attachments = self.queryset.filter(attachment_status=attachment_status)
+#         else:
+#             attachments = self.get_queryset()
+#
+#         serializer = self.get_serializer(attachments, many=True)
+#         response_data = {
+#             'message': 'Attachment listing successfully',
+#             'status': 'success',
+#             'data': serializer.data
+#         }
+#         return Response(response_data, status=200)
+#
+#
+# # Delete Attachment
+# class DeleteAttachmentAPIView(generics.DestroyAPIView):
+#     def delete(self, request, attachment_id):
+#         try:
+#             attachment = Attachment.objects.get(attachment_id=attachment_id)
+#         except Attachment.DoesNotExist:
+#             return Response({'message': 'Attachment not found.'}, status=404)
+#
+#         attachment.delete()
+#         return Response({'message': 'Attachment deleted successfully.'}, status=200)
+#
+
+
 # Variant Management Apis
 class AddVariantCreateView(generics.CreateAPIView):
     queryset = Variant.objects.all()
     serializer_class = VariantSerializer
 
-    def post(self, request):
-        serializer = VariantSerializer(data=request.data)
-        if serializer.is_valid():
-            variant_name = serializer.validated_data['variant_name']
+    def create(self, request, *args, **kwargs):
+        variant_data = request.data
+        attachment_option_data = variant_data.pop('attachment_option', [])
+        sensor_option_data = variant_data.pop('sensor_option', [])
 
-            # Check if a role with the same role_name already exists
-            if Variant.objects.filter(variant_name=variant_name).exists():
-                return Response({'message': 'Variant with the same name already exists.'}, status=400)
+        variant_name = variant_data.get('variant_name')
+        existing_variant = Variant.objects.filter(variant_name=variant_name).first()
 
-            variant = serializer.save()
-            return Response(VariantSerializer(variant).data, status=201)
-        return Response(serializer.errors, status=400)
+        if existing_variant:
+            return Response(
+                {"error": "Variant with the same name already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        variant_serializer = self.get_serializer(data=variant_data)
+        variant_serializer.is_valid(raise_exception=True)
+        variant = variant_serializer.save()
+
+        for attachment in attachment_option_data:
+            attachment_id = attachment.get('attachment_id')
+            existing_attachment = Attachment_or_Sensor_Master.objects.filter(attachment_sensor_id=attachment_id).first()
+            if existing_attachment:
+                variant_attachment = Variant_or_Attachment_or_Sensor.objects.create(
+                    variant=variant,
+                    attachment_or_sensor_id=attachment_id
+                )
+                variant_attachment.save()
+            else:
+                return Response(
+                    {"error": "Attachment  id not  exists."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        for sensor in sensor_option_data:
+            sensor_id = sensor.get('sensor_id')
+            existing_sensor = Attachment_or_Sensor_Master.objects.filter(attachment_sensor_id=sensor_id).first()
+            if existing_sensor:
+                variant_sensor = Variant_or_Attachment_or_Sensor.objects.create(
+                    variant=variant,
+                    attachment_or_sensor_id=sensor_id
+                )
+                variant_sensor.save()
+            else:
+                return Response(
+                    {"error": "Sensor with the id not exists."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        return Response(variant_serializer.data, status=status.HTTP_201_CREATED)
 
 class GetVariantAPIView(generics.ListAPIView):
     queryset = Variant.objects.all()
@@ -388,19 +609,37 @@ class GetVariantAPIView(generics.ListAPIView):
 class UpdateVariantAPIView(generics.UpdateAPIView):
     queryset = Variant.objects.all()
     serializer_class = VariantSerializer
-    lookup_field = 'variant_id'
 
     def put(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        response_data = {
-            'message': 'Variant Updated successfully',
-            'status': 'success',
-            'data': serializer.data
-        }
-        return Response(response_data)
+        variant_id = self.kwargs.get('variant_id')
+        variant_data = request.data
+        variant_name = variant_data.get('variant_name')
+        variant_description = variant_data.get('variant_description')
+
+        try:
+            variant = Variant.objects.get(variant_id=variant_id)
+        except Variant.DoesNotExist:
+            return Response(
+                {"error": "Variant does not exist."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if variant_name:
+            # Check if variant with the new name already exists
+            existing_variant = Variant.objects.filter(variant_name=variant_name).exclude(variant_id=variant_id).first()
+            if existing_variant:
+                return Response(
+                    {"error": "Variant with the same name already exists."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            variant.variant_name = variant_name
+
+        if variant_description:
+            variant.variant_description = variant_description
+
+        variant.save()
+
+        return Response(self.get_serializer(instance=variant).data, status=status.HTTP_200_OK)
 
 
 class DeleteVariantAPIView(generics.DestroyAPIView):
@@ -412,41 +651,3 @@ class DeleteVariantAPIView(generics.DestroyAPIView):
 
         variant.delete()
         return Response({'message': 'Variant deleted successfully.'}, status=200)
-
-
-class SensorCreateView(generics.GenericAPIView):
-    def post(self, request):
-        serializer = SensorSerializer(data=request.data)
-        if serializer.is_valid():
-            sensor_id = serializer.validated_data['sensor_id']
-            if Sensor.objects.filter(sensor_id=sensor_id).exists():
-                return Response(
-                    {"message": "A sensor with the same id already exists."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            serializer.save()
-            message = {
-                "message": "Sensor Added Successfully",
-                "data": serializer.data
-            }
-            return Response(message, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class AttachmentCreateView(generics.GenericAPIView):
-    def post(self, request):
-        serializer = AttachmentSerializer(data=request.data)
-        if serializer.is_valid():
-            attachment_id = serializer.validated_data.get('attachment_id')
-            if attachment_id is not None and Attachment.objects.filter(attachment_id=attachment_id).exists():
-                return Response(
-                    {"message": "An attachment with the same ID already exists."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            serializer.save()
-            message = {
-                "message": "Attachment Added Successfully",
-                "data": serializer.data
-            }
-            return Response(message, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

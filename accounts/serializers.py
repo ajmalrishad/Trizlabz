@@ -3,7 +3,8 @@ from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
-from .models import User, Role, Customer, Privilege, Variant, Attachment, Sensor
+from .models import User, Role, Customer, Privilege, Variant, Attachment_or_Sensor_Master, \
+    Variant_or_Attachment_or_Sensor
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -129,94 +130,20 @@ class CustomerSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class AttachmentSerializer(serializers.ModelSerializer):
+class Attachment_SensorSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Attachment
+        model = Attachment_or_Sensor_Master
         fields = '__all__'
 
 
-class SensorSerializer(serializers.ModelSerializer):
+class Variant_or_Attachment_or_Sensor_Serializer(serializers.ModelSerializer):
     class Meta:
-        model = Sensor
+        model = Variant_or_Attachment_or_Sensor
         fields = '__all__'
 
 
 class VariantSerializer(serializers.ModelSerializer):
-    attachment_option = AttachmentSerializer(many=True)
-    sensor_option = SensorSerializer(many=True)
 
     class Meta:
         model = Variant
-        fields = ['variant_id', 'variant_name', 'variant_description', 'attachment_option', 'sensor_option']
-
-    def create(self, validated_data):
-        attachment_data = validated_data.pop('attachment_option')
-        sensor_data = validated_data.pop('sensor_option')
-
-        variant = Variant.objects.create(**validated_data)
-
-        for attachment in attachment_data:
-            Attachment.objects.create(variant=variant, **attachment)
-
-        for sensor in sensor_data:
-            Sensor.objects.create(variant=variant, **sensor)
-
-        return variant
-
-    def update(self, instance, validated_data):
-        attachment_data = validated_data.pop('attachment_option', [])
-        sensor_data = validated_data.pop('sensor_option', [])
-
-        instance.variant_name = validated_data.get('variant_name', instance.variant_name)
-        instance.variant_description = validated_data.get('variant_description', instance.variant_description)
-        instance.save()
-
-        self._update_attachments(instance, attachment_data)
-        self._update_sensors(instance, sensor_data)
-
-        return instance
-
-    def _update_attachments(self, instance, attachment_data):
-        existing_attachments = instance.attachment_option.all()
-        existing_attachments_ids = [item.id for item in existing_attachments]
-        updated_attachments = []
-        created_attachments = []
-
-        for attachment in attachment_data:
-            attachment_id = attachment.get('attachment_id', None)
-            if attachment_id and attachment_id in existing_attachments_ids:
-                updated_attachment = existing_attachments.get(id=attachment_id)
-                updated_attachment.attachment_name = attachment.get('attachment_name',
-                                                                    updated_attachment.attachment_name)
-                updated_attachment.save()
-                updated_attachments.append(updated_attachment)
-            else:
-                created_attachments.append(Attachment(variant=instance, **attachment))
-
-        Attachment.objects.bulk_create(created_attachments)
-
-        for attachment in existing_attachments:
-            if attachment not in updated_attachments:
-                attachment.delete()
-
-    def _update_sensors(self, instance, sensor_data):
-        existing_sensors = instance.sensor_option.all()
-        existing_sensors_ids = [item.id for item in existing_sensors]
-        updated_sensors = []
-        created_sensors = []
-
-        for sensor in sensor_data:
-            sensor_id = sensor.get('sensor_id', None)
-            if sensor_id and sensor_id in existing_sensors_ids:
-                updated_sensor = existing_sensors.get(id=sensor_id)
-                updated_sensor.sensor_name = sensor.get('sensor_name', updated_sensor.sensor_name)
-                updated_sensor.save()
-                updated_sensors.append(updated_sensor)
-            else:
-                created_sensors.append(Sensor(variant=instance, **sensor))
-
-        Sensor.objects.bulk_create(created_sensors)
-
-        for sensor in existing_sensors:
-            if sensor not in updated_sensors:
-                sensor.delete()
+        fields = '__all__'

@@ -7,7 +7,9 @@ from . import views
 from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, CreateRoleView, RoleUpdateView, \
     RoleDeleteView, GetRoleAPIView, CustomerCreateView, GetCustomerAPIView, UpdateCustomerAPIView, \
     DeleteCustomerAPIView, AddVariantCreateView, GetVariantAPIView, UpdateVariantAPIView, DeleteVariantAPIView, \
-    SensorCreateView, AttachmentCreateView
+    Attachment_Sensor_CreateView
+# UpdateSensorAPIView, GetSensorAPIView, DeleteSensorAPIView, \
+# GetAttachmentAPIView, UpdateAttachmentAPIView, DeleteAttachmentAPIView
 
 urlpatterns = [
     path('register', views.RegisterView.as_view(), name="register"),
@@ -26,12 +28,17 @@ urlpatterns = [
     path('getcustomer', GetCustomerAPIView.as_view(), name='customer-get'),
     path('updatecustomer/<int:id>', UpdateCustomerAPIView.as_view(), name='customer-update'),
     path('deletecustomer/<int:id>', DeleteCustomerAPIView.as_view(), name='customer-delete'),
+    # path('addsensor', SensorCreateView.as_view(), name='add-sensor'),
+    # path('updatesensor/<int:sensor_id>', UpdateSensorAPIView.as_view(), name='update-sensor'),
+    # path('getsensor', GetSensorAPIView.as_view(), name='getsensor'),
+    # path('deletesensor/<int:sensor_id>', DeleteSensorAPIView.as_view(), name='delete-sensor'),
+    path('addattachment_or_sensor', Attachment_Sensor_CreateView.as_view(), name='add-attachment'),
+    # path('updateattachment/<attachment_id>', UpdateAttachmentAPIView.as_view(), name='update-attachment'),
+    # path('getattachment', GetAttachmentAPIView.as_view(), name='get-attachment'),
+    # path('deleteattachment/<attachment_id>', DeleteAttachmentAPIView.as_view(), name='delete-attachment'),
     path('addvariant', AddVariantCreateView.as_view(), name='addvariant'),
     path('getvariant', GetVariantAPIView.as_view(), name='variant-get'),
     path('updatevariant/<int:variant_id>', UpdateVariantAPIView.as_view(), name='variant-update'),
     path('deletevariant/<int:variant_id>', DeleteVariantAPIView.as_view(), name='variant-delete'),
-    path('addsensor', SensorCreateView.as_view(), name='add-sensor'),
-    path('addattachment', AttachmentCreateView.as_view(), name='add-attachment')
-
 
 ]

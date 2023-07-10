@@ -79,30 +79,25 @@ class Variant(models.Model):
     variant_name = models.CharField(max_length=255)
     variant_description = models.TextField()
     variant_status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
 
     def __str__(self):
         return self.variant_name
 
 
-class Attachment(models.Model):
-    attachment_id = models.AutoField(primary_key=True)
-    attachment_name = models.CharField(max_length=255)
-    attachment_status = models.BooleanField(default=True)
+class Attachment_or_Sensor_Master(models.Model):
+    attachment_sensor_id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+    status = models.BooleanField(default=True)
+    attachment_or_sensor = models.IntegerField(choices=((1, 'Attachment'), (2, 'Sensor')))
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
 
 
-class Sensor(models.Model):
-    sensor_id = models.AutoField(primary_key=True)
-    sensor_name = models.CharField(max_length=255)
-    sensor_status = models.BooleanField(default=True)
-
-
-class Attachment_or_Sensor(models.Model):
-    ATTACHMENT_OR_SENSOR_CHOICES = (
-        (1, 'Attachment'),
-        (2, 'Sensor'),
-    )
-
-    attachment = models.ForeignKey(Attachment, on_delete=models.CASCADE, related_name='attachment_or_sensor')
-    variant = models.ForeignKey(Variant, on_delete=models.CASCADE, related_name='attachment_or_sensor')
-    attachment_or_sensor = models.IntegerField(choices=ATTACHMENT_OR_SENSOR_CHOICES)
-
+class Variant_or_Attachment_or_Sensor(models.Model):
+    variant = models.ForeignKey(Variant, on_delete=models.CASCADE, )
+    attachment_or_sensor = models.ForeignKey(Attachment_or_Sensor_Master, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
