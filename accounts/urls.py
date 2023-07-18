@@ -7,11 +7,11 @@ from . import views
 from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, CreateRoleView, RoleUpdateView, \
     RoleDeleteView, GetRoleAPIView, CustomerCreateView, GetCustomerAPIView, UpdateCustomerAPIView, \
     DeleteCustomerAPIView, AddVariantCreateView, GetVariantAPIView, UpdateVariantAPIView, DeleteVariantAPIView, \
-    Attachment_Sensor_CreateView
-# UpdateSensorAPIView, GetSensorAPIView, DeleteSensorAPIView, \
-# GetAttachmentAPIView, UpdateAttachmentAPIView, DeleteAttachmentAPIView
+    Attachment_Sensor, GetAttachment_SensorAPIView, UpdateAttachmentAPIView, DeleteAttachment_SensorAPIView, \
+    AddMapCreateView, GetMapListAPIView, UpdateMapAPIView, DeleteMapAPIView
 
 urlpatterns = [
+    # User Management And Token
     path('register', views.RegisterView.as_view(), name="register"),
     path('login', views.LoginAPIView.as_view(), name="login"),
     path('get_users', views.GetUsersAPIView.as_view(), name="logout"),
@@ -20,25 +20,31 @@ urlpatterns = [
     path('logout', LogoutAPIView.as_view(), name='logout_token'),
     path('update_user/<int:pk>', UpdateUsersAPIView.as_view(), name='update_user'),
     path('delete_user/<int:pk>', DeleteUsersAPIView.as_view(), name='delete_user'),
+    # Role Management
     path('add_role', CreateRoleView.as_view(), name='add_role'),
     path('get_role', GetRoleAPIView.as_view(), name='role-list'),
     path('update_role/<int:role_id>', RoleUpdateView.as_view(), name='update_role'),
     path('delete_role/<int:role_id>', RoleDeleteView.as_view(), name='role-delete'),
+    # Customer Management
     path('addcustomer', CustomerCreateView.as_view(), name='customer-create'),
     path('getcustomer', GetCustomerAPIView.as_view(), name='customer-get'),
     path('updatecustomer/<int:id>', UpdateCustomerAPIView.as_view(), name='customer-update'),
     path('deletecustomer/<int:id>', DeleteCustomerAPIView.as_view(), name='customer-delete'),
-    # path('addsensor', SensorCreateView.as_view(), name='add-sensor'),
-    # path('updatesensor/<int:sensor_id>', UpdateSensorAPIView.as_view(), name='update-sensor'),
-    # path('getsensor', GetSensorAPIView.as_view(), name='getsensor'),
-    # path('deletesensor/<int:sensor_id>', DeleteSensorAPIView.as_view(), name='delete-sensor'),
-    path('addattachment_or_sensor', Attachment_Sensor_CreateView.as_view(), name='add-attachment'),
-    # path('updateattachment/<attachment_id>', UpdateAttachmentAPIView.as_view(), name='update-attachment'),
-    # path('getattachment', GetAttachmentAPIView.as_view(), name='get-attachment'),
-    # path('deleteattachment/<attachment_id>', DeleteAttachmentAPIView.as_view(), name='delete-attachment'),
+    # Attachmet or Sensor Management
+    path('add_attachment_or_sensor', Attachment_Sensor.as_view(), name='add-attachment'),
+    path('update_attachment_or_sensor/<attachment_sensor_id>', UpdateAttachmentAPIView.as_view(),
+         name='update-attachment'),
+    path('get_attachment_or_sensor', GetAttachment_SensorAPIView.as_view(), name='get-attachment'),
+    path('delete_attachment_sensor', DeleteAttachment_SensorAPIView.as_view(), name='delete-attachment'),
+    # Variant Management
     path('addvariant', AddVariantCreateView.as_view(), name='addvariant'),
-    path('getvariant', GetVariantAPIView.as_view(), name='variant-get'),
+    path('getvariant/<int:pk>', GetVariantAPIView.as_view(), name='variant-get'),
     path('updatevariant/<int:variant_id>', UpdateVariantAPIView.as_view(), name='variant-update'),
     path('deletevariant/<int:variant_id>', DeleteVariantAPIView.as_view(), name='variant-delete'),
+    # Map Management
+    path('addmap', AddMapCreateView.as_view(), name='addmap'),
+    path('getmap', GetMapListAPIView.as_view(), name='get-map'),
+    path('updatemap/<int:id>', UpdateMapAPIView.as_view(), name='update'),
+    path('deletemap/<int:id>', DeleteMapAPIView.as_view(), name='delete')
 
 ]

@@ -95,9 +95,25 @@ class Attachment_or_Sensor_Master(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
 
+    def __str__(self):
+        return self.name
+
 
 class Variant_or_Attachment_or_Sensor(models.Model):
     variant = models.ForeignKey(Variant, on_delete=models.CASCADE, )
     attachment_or_sensor = models.ForeignKey(Attachment_or_Sensor_Master, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
+    def __str__(self):
+        return self.variant
+
+#Map Management
+class Map(models.Model):
+    map_name = models.CharField(max_length=255)
+    map_description = models.TextField()
+    customer_id = models.CharField(max_length=255)
+    map_layout = models.URLField()
+    path_layout = models.JSONField()
+    map_status= models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)

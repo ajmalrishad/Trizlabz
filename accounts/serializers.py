@@ -4,7 +4,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from .models import User, Role, Customer, Privilege, Variant, Attachment_or_Sensor_Master, \
-    Variant_or_Attachment_or_Sensor
+    Variant_or_Attachment_or_Sensor, Map
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -143,7 +143,31 @@ class Variant_or_Attachment_or_Sensor_Serializer(serializers.ModelSerializer):
 
 
 class VariantSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Variant
+        fields = '__all__'
+
+
+class GetVariantSerializer(serializers.ModelSerializer):
+    variant = Variant_or_Attachment_or_Sensor_Serializer(many=True, read_only=True)
+    attachment_or_sensor = Variant_or_Attachment_or_Sensor_Serializer(many=True, read_only=True)
 
     class Meta:
         model = Variant
+        fields = ['variant_id', 'variant_name', 'variant_description', 'variant_status', 'variant',
+                  'attachment_or_sensor']
+
+
+class GetSensor_AttachmentSerializer(serializers.ModelSerializer):
+    variant = Variant_or_Attachment_or_Sensor_Serializer(many=True, read_only=True)
+    attachment_or_sensor = Variant_or_Attachment_or_Sensor_Serializer(many=True, read_only=True)
+
+    class Meta:
+        model = Variant_or_Attachment_or_Sensor
+        fields = '__all__'
+
+#Map Management
+class MapSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Map
         fields = '__all__'
