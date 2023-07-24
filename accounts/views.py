@@ -2,14 +2,16 @@ from django.contrib.auth import logout
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken, OutstandingToken
 
-from .models import User, Role, Customer, Variant, Attachment_or_Sensor_Master, Variant_or_Attachment_or_Sensor, Map
+from .models import User, Role, Customer, Variant, Attachment_or_Sensor_Master, Variant_or_Attachment_or_Sensor, Map, \
+    Deployment, Deployment_Maps, Vehicle, Vehicle_Attachments
 from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer, UpdateUserSerializer, \
     DeleteUserSerializer, RoleSerializer, CustomerSerializer, VariantSerializer, Attachment_SensorSerializer, \
-    MapSerializer
+    MapSerializer, DeploymentSerializer, VehicleSerializer
 
 
 # User Management Apis
@@ -258,7 +260,12 @@ class CustomerCreateView(generics.CreateAPIView):
                 return Response({'message': 'Customer with the same name already exists.'}, status=400)
 
             customer = serializer.save()
-            return Response(CustomerSerializer(customer).data, status=201)
+            response = {
+                "message": "Customer Added Successfully",
+                "data": CustomerSerializer(customer).data
+
+            }
+            return Response(response, status=201)
 
         return Response(serializer.errors, status=400)
 
@@ -803,6 +810,7 @@ class AddVariantCreateView(generics.CreateAPIView):
 #         }
 #         return Response(response_data, status=200)
 
+# TODO: Get variant using query
 class GetVariantAPIView(generics.RetrieveAPIView):
     queryset = Variant.objects.all()
     serializer_class = VariantSerializer
@@ -939,7 +947,11 @@ class AddMapCreateView(generics.GenericAPIView):
         serializer = MapSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            response = {
+                "message": "Map Added successfully",
+                "data": serializer.data
+            }
+            return Response(response, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -999,3 +1011,449 @@ class DeleteMapAPIView(generics.DestroyAPIView):
 
         map.delete()
         return Response({'message': 'Map deleted successfully.'}, status=200)
+
+
+class AddDeploymentCreateView(generics.CreateAPIView):
+    queryset = Deployment.objects.all()
+    serializer_class = DeploymentSerializer
+
+    def validate_map_data(self, map_data):
+        map_id = map_data.get('map_id')
+        map_name = map_data.get('map_name')
+
+        if not map_id or not isinstance(map_id, int):
+            raise DRFValidationError("Invalid 'map_id'. It should be an integer.")
+
+        if not map_name or not isinstance(map_name, str):
+            raise DRFValidationError("Invalid 'map_name'. It should be a non-empty string.")
+
+        try:
+            map_instance = Map.objects.get(id=map_id, map_name=map_name)
+        except Map.DoesNotExist:
+            raise DRFValidationError("Map with the provided 'map_id' and 'map_name' does not exist.")
+
+        return map_instance
+
+    def create(self, request, *args, **kwargs):
+        deployment_data = request.data
+        deployment_name = deployment_data.get('deployment_name')
+        list_of_maps_attached_data = deployment_data.get('list_of_maps_attached', [])
+
+        existing_deployment = Deployment.objects.filter(deployment_name=deployment_name).first()
+        if existing_deployment:
+            return Response(
+                {"error": "Deployment with the same name already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        deployment_serializer = self.get_serializer(data=deployment_data)
+        deployment_serializer.is_valid(raise_exception=True)
+        deployment = deployment_serializer.save()
+
+        attached_maps = []
+        for map_data in list_of_maps_attached_data:
+            try:
+                map_instance = self.validate_map_data(map_data)
+
+                deployment_map, created = Deployment_Maps.objects.get_or_create(map=map_instance, deployment=deployment)
+
+                if map_instance.map_name != map_data.get('map_name'):
+                    map_instance.map_name = map_data.get('map_name')
+                    map_instance.save()
+
+                attached_maps.append({
+                    "map_id": map_instance.id,
+                    "map_name": map_instance.map_name
+                })
+            except DRFValidationError as e:
+                deployment.delete()  # Rollback the created deployment
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        response_data = {
+            "message": "Deployment Added Successfully",
+            "data": {
+                "id": deployment.id,
+                "deployment_name": deployment.deployment_name,
+                "deployment_status": deployment.deployment_status,
+                "list_of_maps_attached": attached_maps
+            }
+        }
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class UpdateDeploymentView(generics.UpdateAPIView):
+    queryset = Deployment.objects.all()
+    serializer_class = DeploymentSerializer
+    lookup_field = 'id'
+
+    def validate_map_data(self, map_data):
+        map_id = map_data.get('map_id')
+        map_name = map_data.get('map_name')
+
+        if not map_id or not isinstance(map_id, int):
+            raise DRFValidationError("Invalid 'map_id'. It should be an integer.")
+
+        if not map_name or not isinstance(map_name, str):
+            raise DRFValidationError("Invalid 'map_name'. It should be a non-empty string.")
+
+        try:
+            map_instance = Map.objects.get(id=map_id, map_name=map_name)
+        except Map.DoesNotExist:
+            raise DRFValidationError("Map with the provided 'map_id' and 'map_name' does not exist.")
+
+        return map_instance
+
+    def update(self, request, *args, **kwargs):
+        deployment_instance = self.get_object()
+        deployment_data = request.data
+        deployment_name = deployment_data.get('deployment_name', deployment_instance.deployment_name)
+        list_of_maps_attached_data = deployment_data.get('list_of_maps_attached', [])
+
+        existing_deployment = Deployment.objects.exclude(id=deployment_instance.id).filter(
+            deployment_name=deployment_name).first()
+        if existing_deployment:
+            return Response(
+                {"error": "Deployment with the same name already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        deployment_serializer = self.get_serializer(deployment_instance, data=deployment_data, partial=True)
+        deployment_serializer.is_valid(raise_exception=True)
+        updated_deployment = deployment_serializer.save()
+
+        attached_maps = []
+        for map_data in list_of_maps_attached_data:
+            try:
+                map_instance = self.validate_map_data(map_data)
+
+                deployment_map, created = Deployment_Maps.objects.get_or_create(map=map_instance,
+                                                                                deployment=updated_deployment)
+
+                if map_instance.map_name != map_data.get('map_name'):
+                    map_instance.map_name = map_data.get('map_name')
+                    map_instance.save()
+
+                attached_maps.append({
+                    "map_id": map_instance.id,
+                    "map_name": map_instance.map_name
+                })
+            except DRFValidationError as e:
+                # You may want to handle this error differently, depending on your requirements
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Delete maps that are no longer in the list of attached maps
+        existing_map_ids = list(
+            Deployment_Maps.objects.filter(deployment=updated_deployment).values_list('map_id', flat=True))
+        updated_map_ids = [map_data['map_id'] for map_data in attached_maps]
+
+        maps_to_delete = set(existing_map_ids) - set(updated_map_ids)
+        Deployment_Maps.objects.filter(deployment=updated_deployment, map_id__in=maps_to_delete).delete()
+
+        response_data = {
+            "message": "Deployment Updated Successfully",
+            "data": {
+                "id": updated_deployment.id,
+                "deployment_name": updated_deployment.deployment_name,
+                "deployment_status": updated_deployment.deployment_status,
+                "list_of_maps_attached": attached_maps
+            }
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class GetDeploymentAPIView(generics.ListAPIView):
+    serializer_class = DeploymentSerializer
+
+    def get_queryset(self):
+        queryset = Deployment.objects.all()
+
+        deployment_id = self.request.query_params.get('id')
+        deployment_name = self.request.query_params.get('deployment_name')
+        deployment_status = self.request.query_params.get('deployment_status')
+
+        if deployment_id:
+            queryset = queryset.filter(id=deployment_id)
+
+        if deployment_name:
+            queryset = queryset.filter(deployment_name__iexact=deployment_name)
+
+        if deployment_status:
+            queryset = queryset.filter(deployment_status__iexact=deployment_status)
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serialized_data = self.get_serializer(queryset, many=True).data
+
+        response_data = {
+            "message": "Deployment Listed Successfully",
+            "data": []
+        }
+
+        for data in serialized_data:
+            deployment_id = data["id"]
+            deployment_name = data["deployment_name"]
+            deployment_status = data["deployment_status"]
+            attached_maps = self.get_attached_maps(deployment_id)
+
+            response_data["data"].append({
+                "id": deployment_id,
+                "deployment_name": deployment_name,
+                "deployment_status": deployment_status,
+                "list_of_maps_attached": attached_maps
+            })
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    def get_attached_maps(self, deployment_id):
+        attached_maps = Deployment_Maps.objects.filter(deployment_id=deployment_id)
+        serialized_maps = [
+            {
+                "map_id": deployment_map.map.id,
+                "map_name": deployment_map.map.map_name
+            }
+            for deployment_map in attached_maps
+        ]
+        return serialized_maps
+
+
+class DeleteDeploymentAPIView(generics.DestroyAPIView):
+    def delete(self, request, id):
+        try:
+            deployment = Deployment.objects.get(id=id)
+        except Deployment.DoesNotExist:
+            return Response({'message': 'Deployment not found.'}, status=404)
+
+        deployment.delete()
+        return Response({'message': 'Deployment  deleted successfully.'}, status=200)
+
+# Vehicle Management
+class AddVehicleAPIView(generics.CreateAPIView):
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        attachment_options_data = data.get('attachment_option', [])
+
+        vehicle_data = {
+            'vehicle_label': data.get('vehicle_label'),
+            'endpoint_id': data.get('endpoint_id'),
+            'application_id': data.get('application_id'),
+            'vehicle_variant': data.get('vehicle_variant'),
+            'customer_id': data.get('customer_id'),
+        }
+
+        # Check if a vehicle with the same label already exists
+        if Vehicle.objects.filter(vehicle_label=vehicle_data['vehicle_label']).exists():
+            return Response({"vehicle_label": "A vehicle with this label already exists."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if Variant.objects.filter(variant_name=vehicle_data['vehicle_variant']).exists():
+
+            if Customer.objects.filter(id=vehicle_data['customer_id']).exists():
+
+                # Create the vehicle
+                vehicle = Vehicle.objects.create(**vehicle_data)
+            else:
+                return Response({"custom_id": "No Customer or InValid Customer id "}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response({"vehicle_variant": "No Variant or InValid Vehicle_Variant"},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        # Store the attachment options for the response
+        response_attachment_options = []
+
+        for option_data in attachment_options_data:
+            name = option_data.get('name')
+            attachment_sensor_id = option_data.get('attachment_sensor_id')
+
+            # Check if an attachment option with the same name exists
+            try:
+                attachment_option = Attachment_or_Sensor_Master.objects.get(name=name)
+            except Attachment_or_Sensor_Master.DoesNotExist:
+                return Response(
+                    {"attachment_option": [{"name": f"Attachment option with name '{name}' does not exist."}]},
+                    status=status.HTTP_400_BAD_REQUEST)
+
+            # Check if an attachment option with the same attachment_sensor_id exists
+            try:
+                existing_attachment = Attachment_or_Sensor_Master.objects.get(attachment_sensor_id=attachment_sensor_id)
+            except Attachment_or_Sensor_Master.DoesNotExist:
+                return Response({"attachment_option": [
+                    {"name": f"Attachment option with attachment_sensor_id '{attachment_sensor_id}' does not exist."}]},
+                    status=status.HTTP_400_BAD_REQUEST)
+
+            # Create and associate the vehicle attachment with the vehicle
+            vehicle_attachment = Vehicle_Attachments.objects.create(vehicle=vehicle,
+                                                                    attachment_option=attachment_option)
+
+            # Add the attachment option details to the response list
+            response_attachment_options.append({
+                "attachment_sensor_id": attachment_option.attachment_sensor_id,
+                "name": attachment_option.name,
+            })
+
+        # Prepare the complete response
+        response_data = {
+            "message": "Vehicle Added Successfully",
+            "vehicle_id": vehicle.id,
+            "vehicle_label": vehicle.vehicle_label,
+            "endpoint_id": vehicle.endpoint_id,
+            "application_id": vehicle.application_id,
+            "vehicle_variant": vehicle.vehicle_variant,
+            "customer_id": vehicle.customer_id,
+            "attachment_option": response_attachment_options,
+        }
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class UpdateVehicleAPIView(generics.UpdateAPIView):
+    def put(self, request, *args, **kwargs):
+        data = request.data
+        vehicle_id = kwargs.get('pk')
+
+        try:
+            vehicle = Vehicle.objects.get(pk=vehicle_id)
+        except Vehicle.DoesNotExist:
+            return Response({"detail": "Vehicle not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        attachment_options_data = data.get('attachment_option', [])
+
+        vehicle_data = {
+            'vehicle_label': data.get('vehicle_label', vehicle.vehicle_label),
+            'endpoint_id': data.get('endpoint_id', vehicle.endpoint_id),
+            'application_id': data.get('application_id', vehicle.application_id),
+            'vehicle_variant': data.get('vehicle_variant', vehicle.vehicle_variant),
+            'customer_id': data.get('customer_id', vehicle.customer_id),
+        }
+
+        # Check if a vehicle with the same label already exists
+        if Vehicle.objects.exclude(pk=vehicle_id).filter(vehicle_label=vehicle_data['vehicle_label']).exists():
+            return Response({"vehicle_label": "A vehicle with this label already exists."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Update the vehicle
+        for key, value in vehicle_data.items():
+            setattr(vehicle, key, value)
+        vehicle.save()
+
+        # Store the attachment options for the response
+        response_attachment_options = []
+
+        for option_data in attachment_options_data:
+            name = option_data.get('name')
+            attachment_sensor_id = option_data.get('attachment_sensor_id')
+
+            # Check if an attachment option with the same name exists
+            try:
+                attachment_option = Attachment_or_Sensor_Master.objects.get(name=name)
+            except Attachment_or_Sensor_Master.DoesNotExist:
+                return Response(
+                    {"attachment_option": [{"name": f"Attachment option with name '{name}' does not exist."}]},
+                    status=status.HTTP_400_BAD_REQUEST)
+
+            # Check if an attachment option with the same attachment_sensor_id exists
+            try:
+                existing_attachment = Attachment_or_Sensor_Master.objects.get(attachment_sensor_id=attachment_sensor_id)
+            except Attachment_or_Sensor_Master.DoesNotExist:
+                return Response({"attachment_option": [
+                    {"name": f"Attachment option with attachment_sensor_id '{attachment_sensor_id}' does not exist."}]},
+                    status=status.HTTP_400_BAD_REQUEST)
+
+            # Create and associate the vehicle attachment with the vehicle
+            vehicle_attachment = Vehicle_Attachments.objects.create(vehicle=vehicle,
+                                                                    attachment_option=attachment_option)
+
+            # Add the attachment option details to the response list
+            response_attachment_options.append({
+                "attachment_sensor_id": attachment_option.attachment_sensor_id,
+                "name": attachment_option.name,
+            })
+
+        # Prepare the complete response
+        response_data = {
+            "message": "Vehicle Updated successfully",
+            "vehicle_id": vehicle.id,
+            "vehicle_label": vehicle.vehicle_label,
+            "endpoint_id": vehicle.endpoint_id,
+            "application_id": vehicle.application_id,
+            "vehicle_variant": vehicle.vehicle_variant,
+            "customer_id": vehicle.customer_id,
+            "attachment_option": response_attachment_options,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class GetVehicleAPIView(generics.ListAPIView):
+    serializer_class = VehicleSerializer
+
+    def get_queryset(self):
+        queryset = Vehicle.objects.all()
+
+        vehicle_id = self.request.query_params.get('id')
+        vehicle_label = self.request.query_params.get('vehicle_label')
+        vehicle_status = self.request.query_params.get('vehicle_status')
+
+        if vehicle_id:
+            queryset = queryset.filter(id=vehicle_id)
+
+        if vehicle_label:
+            queryset = queryset.filter(vehicle_label__iexact=vehicle_label)
+
+        if vehicle_status:
+            queryset = queryset.filter(vehicle_status__iexact=vehicle_status)
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serialized_data = self.get_serializer(queryset, many=True).data
+
+        response_data = {
+            "message": "Vehicle Listed Successfully",
+            "data": []
+        }
+
+        for data in serialized_data:
+            vehicle_id = data["id"]
+            vehicle_label = data["vehicle_label"]
+            vehicle_status = data["vehicle_status"]
+            attachment_option = self.get_attachementoptions(vehicle_id)
+
+            response_data["data"].append({
+                "id": vehicle_id,
+                "vehicle_label": vehicle_label,
+                "vehicle_status": vehicle_status,
+                "attachment_option": attachment_option
+            })
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    def get_attachementoptions(self, vehicle_id):
+        attachment_option = Vehicle_Attachments.objects.filter(id=vehicle_id)
+        serialized_data = [
+            {
+                "attachment_sensor_id": attachments.attachment_option.attachment_sensor_id,
+                "name": attachments.attachment_option.name
+            }
+            for attachments in attachment_option
+        ]
+        return serialized_data
+
+
+class DeleteVehicleAPIView(generics.GenericAPIView):
+    queryset = Vehicle.objects.all()
+    serializer_class = VehicleSerializer
+    lookup_url_kwarg = 'id'
+
+    def delete(self, request, id):
+        try:
+            vehicle = Vehicle.objects.get(id=id)
+        except Vehicle.DoesNotExist:
+            return Response({'message': 'Vehicle  not found.'}, status=404)
+
+        vehicle.delete()
+        return Response({'message': 'Vehicle  deleted successfully.'}, status=200)
+

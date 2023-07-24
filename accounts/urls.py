@@ -8,7 +8,8 @@ from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, Create
     RoleDeleteView, GetRoleAPIView, CustomerCreateView, GetCustomerAPIView, UpdateCustomerAPIView, \
     DeleteCustomerAPIView, AddVariantCreateView, GetVariantAPIView, UpdateVariantAPIView, DeleteVariantAPIView, \
     Attachment_Sensor, GetAttachment_SensorAPIView, UpdateAttachmentAPIView, DeleteAttachment_SensorAPIView, \
-    AddMapCreateView, GetMapListAPIView, UpdateMapAPIView, DeleteMapAPIView
+    AddMapCreateView, GetMapListAPIView, UpdateMapAPIView, DeleteMapAPIView, AddDeploymentCreateView, \
+    UpdateDeploymentView, GetDeploymentAPIView, DeleteDeploymentAPIView, AddVehicleAPIView, UpdateVehicleAPIView,GetVehicleAPIView,DeleteVehicleAPIView
 
 urlpatterns = [
     # User Management And Token
@@ -32,7 +33,7 @@ urlpatterns = [
     path('deletecustomer/<int:id>', DeleteCustomerAPIView.as_view(), name='customer-delete'),
     # Attachmet or Sensor Management
     path('add_attachment_or_sensor', Attachment_Sensor.as_view(), name='add-attachment'),
-    path('update_attachment_or_sensor/<attachment_sensor_id>', UpdateAttachmentAPIView.as_view(),
+    path('update_attachment_or_sensor/<int:id>', UpdateAttachmentAPIView.as_view(),
          name='update-attachment'),
     path('get_attachment_or_sensor', GetAttachment_SensorAPIView.as_view(), name='get-attachment'),
     path('delete_attachment_sensor', DeleteAttachment_SensorAPIView.as_view(), name='delete-attachment'),
@@ -45,6 +46,16 @@ urlpatterns = [
     path('addmap', AddMapCreateView.as_view(), name='addmap'),
     path('getmap', GetMapListAPIView.as_view(), name='get-map'),
     path('updatemap/<int:id>', UpdateMapAPIView.as_view(), name='update'),
-    path('deletemap/<int:id>', DeleteMapAPIView.as_view(), name='delete')
+    path('deletemap/<int:id>', DeleteMapAPIView.as_view(), name='delete'),
+    # Deployment Management
+    path('adddeployment', AddDeploymentCreateView.as_view(), name='adddeployment'),
+    path('updatedeployment/<int:id>', UpdateDeploymentView.as_view(), name='update-deployment'),
+    path('getdeployment', GetDeploymentAPIView.as_view(), name='get-deployment'),
+    path('deletedeployment/<int:id>', DeleteDeploymentAPIView.as_view(), name='delete'),
+    # Vehicle Management
+    path('addvehicle', AddVehicleAPIView.as_view(), name='addvehicle'),
+    path('updatevehicle/<int:pk>', UpdateVehicleAPIView.as_view(), name='update-vehicle'),
+    path('getvehicle', GetVehicleAPIView.as_view(), name='get-vehicle'),
+    path('deletevehicle/<int:id>', DeleteVehicleAPIView.as_view(), name='delete_vehicle'),
 
 ]

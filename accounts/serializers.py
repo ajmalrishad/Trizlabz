@@ -4,7 +4,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from .models import User, Role, Customer, Privilege, Variant, Attachment_or_Sensor_Master, \
-    Variant_or_Attachment_or_Sensor, Map
+    Variant_or_Attachment_or_Sensor, Map, Deployment, Vehicle_Attachments, Vehicle
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -166,8 +166,37 @@ class GetSensor_AttachmentSerializer(serializers.ModelSerializer):
         model = Variant_or_Attachment_or_Sensor
         fields = '__all__'
 
-#Map Management
+
+# Map Management
 class MapSerializer(serializers.ModelSerializer):
     class Meta:
         model = Map
+        fields = '__all__'
+
+
+class DeploymentSerializer(serializers.ModelSerializer):
+    list_of_maps_attached = MapSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Deployment
+        fields = '__all__'
+
+
+class AttachmentOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Attachment_or_Sensor_Master
+        fields = ['attachment_sensor_id', 'name']
+
+
+class VehicleAttachmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vehicle_Attachments
+        fields = '__all__'
+
+
+class VehicleSerializer(serializers.ModelSerializer):
+    attachment_option = Attachment_SensorSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Vehicle
         fields = '__all__'

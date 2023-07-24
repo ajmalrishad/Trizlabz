@@ -5,7 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 # Create your models here.
 class Customer(models.Model):
-    customer_name = models.CharField(max_length=100)
+    customer_name = models.CharField(max_length=100, unique=True)
     address_line1 = models.CharField(max_length=100)
     address_line2 = models.CharField(max_length=100)
     profile_image = models.URLField(blank=True)
@@ -58,7 +58,7 @@ class User(AbstractUser):
 
 
 class Role(models.Model):
-    role_name = models.CharField(max_length=100)
+    role_name = models.CharField(max_length=100, unique=True)
     trizlabz_role = models.BooleanField(default=False)
     role_status = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
@@ -76,7 +76,7 @@ class Privilege(models.Model):
 
 class Variant(models.Model):
     variant_id = models.AutoField(primary_key=True)
-    variant_name = models.CharField(max_length=255)
+    variant_name = models.CharField(max_length=255, unique=True)
     variant_description = models.TextField()
     variant_status = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
@@ -88,7 +88,7 @@ class Variant(models.Model):
 
 class Attachment_or_Sensor_Master(models.Model):
     attachment_sensor_id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, unique=True)
     description = models.TextField()
     status = models.BooleanField(default=True)
     attachment_or_sensor = models.IntegerField(choices=((1, 'Attachment'), (2, 'Sensor')))
@@ -104,16 +104,64 @@ class Variant_or_Attachment_or_Sensor(models.Model):
     attachment_or_sensor = models.ForeignKey(Attachment_or_Sensor_Master, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
+
     def __str__(self):
         return self.variant
 
-#Map Management
+
+# Map Management
 class Map(models.Model):
-    map_name = models.CharField(max_length=255)
-    map_description = models.TextField()
+    map_name = models.CharField(max_length=255, unique=True)
+    map_description = models.CharField(max_length=255, null=True)
     customer_id = models.CharField(max_length=255)
     map_layout = models.URLField()
     path_layout = models.JSONField()
-    map_status= models.BooleanField(default=True)
+    map_status = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
+
+    def __str__(self):
+        return self.map_name
+
+
+# Deployment Management
+class Deployment(models.Model):
+    deployment_name = models.CharField(max_length=255, unique=True)
+    deployment_status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
+
+    def __str__(self):
+        return self.deployment_name
+
+
+class Deployment_Maps(models.Model):
+    map = models.ForeignKey(Map, on_delete=models.CASCADE)
+    deployment = models.ForeignKey(Deployment, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
+
+    def __str__(self):
+        return self.deployment
+
+
+class Vehicle(models.Model):
+    vehicle_label = models.CharField(max_length=100)
+    endpoint_id = models.CharField(max_length=100)
+    application_id = models.CharField(max_length=100)
+    vehicle_variant = models.CharField(max_length=100)
+    customer_id = models.CharField(max_length=100)
+    vehicle_status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
+
+    def __str__(self):
+        return self.vehicle_label
+
+
+class Vehicle_Attachments(models.Model):
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
+    attachment_option = models.ForeignKey(Attachment_or_Sensor_Master, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.vehicle
