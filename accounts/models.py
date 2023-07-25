@@ -5,6 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 # Create your models here.
 class Customer(models.Model):
+    id = models.AutoField(primary_key=True)
     customer_name = models.CharField(max_length=100, unique=True)
     address_line1 = models.CharField(max_length=100)
     address_line2 = models.CharField(max_length=100)
@@ -146,7 +147,7 @@ class Deployment_Maps(models.Model):
 
 
 class Vehicle(models.Model):
-    vehicle_label = models.CharField(max_length=100)
+    vehicle_label = models.CharField(max_length=100, unique=True)
     endpoint_id = models.CharField(max_length=100)
     application_id = models.CharField(max_length=100)
     vehicle_variant = models.CharField(max_length=100)
@@ -165,3 +166,45 @@ class Vehicle_Attachments(models.Model):
 
     def __str__(self):
         return self.vehicle
+
+
+# Fleet Management
+class Fleet(models.Model):
+    name = models.CharField(max_length=255, unique=True, blank=False)
+    status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Fleet_Vehicle_Deployment(models.Model):
+    fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
+    deployment = models.ForeignKey(Deployment, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.fleet.name
+
+
+# User Group Management
+class UserGroup(models.Model):
+    name = models.CharField(max_length=255, unique=True, blank=False)
+    status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Group_Deployment_Vehicle_Fleet_Customer(models.Model):
+    group = models.ForeignKey(UserGroup, on_delete=models.CASCADE)
+    deployment = models.ForeignKey(Deployment, on_delete=models.CASCADE)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)
+    fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+
+    # def __str__(self):
+    #     return self.group.name

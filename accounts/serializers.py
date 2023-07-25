@@ -4,7 +4,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from .models import User, Role, Customer, Privilege, Variant, Attachment_or_Sensor_Master, \
-    Variant_or_Attachment_or_Sensor, Map, Deployment, Vehicle_Attachments, Vehicle
+    Variant_or_Attachment_or_Sensor, Map, Deployment, Vehicle_Attachments, Vehicle, Fleet, UserGroup
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -199,4 +199,36 @@ class VehicleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Vehicle
+        fields = '__all__'
+
+
+class FleetSerializer(serializers.ModelSerializer):
+    vehicles = VehicleSerializer(many=True, read_only=True)
+    deployment = DeploymentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Fleet
+        fields = '__all__'
+
+
+# class CustomerCustomSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Customer
+#         fields = ['customer_name']
+#
+#
+# class CustomDeploymentSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Deployment
+#         fields = ['deployment_name']
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    vehicle = VehicleSerializer(many=True, read_only=True)
+    deployment = DeploymentSerializer(many=True, read_only=True)
+    customer = CustomerSerializer(many=True, read_only=True)
+    fleet = FleetSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = UserGroup
         fields = '__all__'

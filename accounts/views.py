@@ -8,10 +8,11 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken, OutstandingToken
 
 from .models import User, Role, Customer, Variant, Attachment_or_Sensor_Master, Variant_or_Attachment_or_Sensor, Map, \
-    Deployment, Deployment_Maps, Vehicle, Vehicle_Attachments
+    Deployment, Deployment_Maps, Vehicle, Vehicle_Attachments, Fleet, Fleet_Vehicle_Deployment, UserGroup, \
+    Group_Deployment_Vehicle_Fleet_Customer
 from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer, UpdateUserSerializer, \
     DeleteUserSerializer, RoleSerializer, CustomerSerializer, VariantSerializer, Attachment_SensorSerializer, \
-    MapSerializer, DeploymentSerializer, VehicleSerializer
+    MapSerializer, DeploymentSerializer, VehicleSerializer, FleetSerializer, GroupSerializer
 
 
 # User Management Apis
@@ -1230,6 +1231,7 @@ class DeleteDeploymentAPIView(generics.DestroyAPIView):
         deployment.delete()
         return Response({'message': 'Deployment  deleted successfully.'}, status=200)
 
+
 # Vehicle Management
 class AddVehicleAPIView(generics.CreateAPIView):
     def post(self, request, *args, **kwargs):
@@ -1457,3 +1459,537 @@ class DeleteVehicleAPIView(generics.GenericAPIView):
         vehicle.delete()
         return Response({'message': 'Vehicle  deleted successfully.'}, status=200)
 
+
+# Fleet Management
+class AddFleetAPIView(generics.CreateAPIView):
+    serializer_class = FleetSerializer
+
+    def post(self, request, *args, **kwargs):
+        fleet_data = request.data
+        fleet_name = fleet_data.get('fleet_name')
+        deployment_id = fleet_data.get('deployment_id')
+        vehicles_data = fleet_data.get('vehicles', [])
+
+        # Check if a fleet with the same name already exists
+        try:
+            fleet = Fleet.objects.get(name=fleet_name)
+            fleet_serializer = self.get_serializer(fleet, data=fleet_data)
+        except Fleet.DoesNotExist:
+            fleet_serializer = self.get_serializer(data=fleet_data)
+
+        # Check if the deployment with the provided ID exists
+        try:
+            deployment = Deployment.objects.get(id=deployment_id)
+        except Deployment.DoesNotExist:
+            return Response({"deployment_id": "Invalid Deployment ID."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        fleet_serializer = self.get_serializer(data=fleet_data)
+        fleet_serializer.is_valid(raise_exception=True)
+        fleet = fleet_serializer.save()
+
+        # Store the associated vehicles with the fleet
+        response_attachment_options = []
+        for vehicle in vehicles_data:
+            vehicle_id = vehicle.get('id')
+            try:
+                vehicle = Vehicle.objects.get(id=vehicle_id)
+            except Vehicle.DoesNotExist:
+                return Response({"vehicles": f"Vehicle with ID {vehicle_id} does not exist."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            Fleet_Vehicle_Deployment.objects.create(fleet=fleet, vehicle=vehicle, deployment=deployment)
+
+            # Prepare the response for each attached vehicle
+            response_attachment_options.append({
+                "vehicle_id": vehicle.id,
+                "vehicle_label": vehicle.vehicle_label,
+            })
+
+        # Get the serialized representation of the fleet with associated vehicles
+        fleet_response_data = fleet_serializer.data
+
+        response_data = {
+            "message": "Fleet Added Successfully",
+            "fleet_data": fleet_response_data,
+            "attached_vehicles": response_attachment_options,
+        }
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class UpdateFleetAPIView(generics.UpdateAPIView):
+    queryset = Fleet.objects.all()
+    serializer_class = FleetSerializer
+
+    def post(self, request, *args, **kwargs):
+        fleet_instance = self.get_object()
+        fleet_data = request.data
+        vehicles_data = fleet_data.get('vehicles', [])
+
+        # Update the associated vehicles with the fleet
+        response_attachment_options = []
+        for vehicle_data in vehicles_data:
+            vehicle_id = vehicle_data.get('id')
+            vehicle_label = vehicle_data.get('vehicle_label')
+
+            try:
+                vehicle = Vehicle.objects.get(id=vehicle_id)
+            except Vehicle.DoesNotExist:
+                return Response({"vehicles": f"Vehicle with ID {vehicle_id} does not exist."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            # Update vehicle data from the request
+            vehicle.vehicle_label = vehicle_label
+            # Add other fields here that you want to update from the request
+            vehicle.save()
+
+            # Update the Fleet_Vehicle_Deployment entry or create a new one if not exist
+            fleet_vehicle_deployment, created = Fleet_Vehicle_Deployment.objects.get_or_create(
+                fleet=fleet_instance, vehicle=vehicle, deployment=fleet_instance.deployment_id
+            )
+
+            # Prepare the response for each attached vehicle
+            response_attachment_options.append({
+                "vehicle_id": vehicle.id,
+                "vehicle_label": vehicle.vehicle_label,
+                # Add other fields here that you want to include in the response
+            })
+
+        # Get the serialized representation of the updated fleet with associated vehicles
+        fleet_serializer = self.get_serializer(fleet_instance)
+        fleet_response_data = fleet_serializer.data
+
+        response_data = {
+            "message": "Fleet Updated Successfully",
+            "fleet_data": fleet_response_data,
+            "attached_vehicles": response_attachment_options,
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class GetFleetAPIView(generics.GenericAPIView):
+    queryset = Fleet.objects.all()
+    serializer_class = FleetSerializer
+
+    def get(self, request, *args, **kwargs):
+        fleet_id = request.query_params.get('fleet_id')
+        fleet_name = request.query_params.get('fleet_name')
+        fleet_status = request.query_params.get('fleet_status')
+
+        if fleet_id is None and fleet_name is None and fleet_status is None:
+            return Response({"detail": "At least one of fleet_id, fleet_name, or fleet_status must be provided."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        fleet_instance = None
+
+        if fleet_id:
+            try:
+                fleet_instance = Fleet.objects.get(id=fleet_id)
+            except Fleet.DoesNotExist:
+                return Response({"detail": "Fleet not found."},
+                                status=status.HTTP_404_NOT_FOUND)
+        elif fleet_name:
+            try:
+                fleet_instance = Fleet.objects.get(name=fleet_name)
+            except Fleet.DoesNotExist:
+                return Response({"detail": "Fleet not found."},
+                                status=status.HTTP_404_NOT_FOUND)
+        elif fleet_status:
+            try:
+                fleet_instance = Fleet.objects.get(status=fleet_status)
+            except Fleet.DoesNotExist:
+                return Response({"detail": "Fleet not found."},
+                                status=status.HTTP_404_NOT_FOUND)
+
+        # Retrieve the associated vehicles for the fleet using Fleet_Vehicle_Deployment model
+        if fleet_instance is not None:
+            attached_vehicles = Vehicle.objects.filter(
+                fleet_vehicle_deployment__fleet=fleet_instance
+            )
+        else:
+            attached_vehicles = Vehicle.objects.none()
+
+        # Serialize the fleet and attached vehicle data
+        fleet_serializer = self.get_serializer(fleet_instance)
+        fleet_data = fleet_serializer.data if fleet_instance else None
+
+        attached_vehicle_list = []
+        for vehicle in attached_vehicles:
+            vehicle_data = {
+                "id": vehicle.id,
+                "vehicle_label": vehicle.vehicle_label,
+                "endpoint_id": vehicle.endpoint_id,
+                "application_id": vehicle.application_id,
+                "vehicle_variant": vehicle.vehicle_variant,
+                "customer_id": vehicle.customer_id,
+                # Add any other fields you want to include for each attached vehicle
+            }
+            attached_vehicle_list.append(vehicle_data)
+
+        # Prepare the complete response
+        response_data = {
+            "fleet_data": fleet_data,
+            "attached_vehicles": attached_vehicle_list,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class DeleteFleetAPIView(generics.GenericAPIView):
+    queryset = Fleet.objects.all()
+    serializer_class = FleetSerializer
+    lookup_url_kwarg = 'id'
+
+    def delete(self, request, id):
+        try:
+            fleet = Fleet.objects.get(id=id)
+        except Fleet.DoesNotExist:
+            return Response({'message': 'Fleet  not found.'}, status=404)
+
+        fleet.delete()
+        return Response({'message': 'Fleet  deleted successfully.'}, status=200)
+
+
+# Group Management
+# class AddGroupAPIView(generics.GenericAPIView):
+#     serializer_class = GroupSerializer
+#
+#     def post(self, request, *args, **kwargs):
+#         group_data = request.data
+#         group_name = group_data.get('name')
+#         customers_data = group_data.get('customers', [])
+#         deployments_data = group_data.get('deployments', [])
+#         vehicles_data = group_data.get('vehicles', [])
+#         fleets_data = group_data.get('fleets', [])
+#
+#         # Check if a group with the same name already exists
+#         if UserGroup.objects.filter(name=group_name).exists():
+#             return Response({"name": "A group with this name already exists."},
+#                             status=status.HTTP_400_BAD_REQUEST)
+#
+#         try:
+#             group = UserGroup.objects.get(name=group_name)
+#             group_serializer = self.get_serializer(group, data=group_data)
+#         except UserGroup.DoesNotExist:
+#             group_serializer = self.get_serializer(data=group_data)
+#             group_serializer.is_valid(raise_exception=True)
+#             group = group_serializer.save()
+#
+#         for customer_data in customers_data:
+#             customer_name = customer_data.get('customer_name')
+#             print(customer_name)
+#             customer = Customer.objects.filter(customer_name=customer_name)
+#
+#             # Associate the customer with the group
+#             Group_Deployment_Vehicle_Fleet_Customer.objects.create(
+#                 group=group,
+#                 customer=customer,
+#             )
+#         # Assuming you have already processed the deployments_data list
+#         for deployments in deployments_data:
+#             print ("Deploy...............", deployments)
+#             deployment_id = deployments.get('id')
+#             try:
+#                 deployment = Deployment.objects.get(id=deployment_id)
+#             except Deployment.DoesNotExist:
+#                 return Response({"deployments": f"Invalid Deployment ID: {deployment_id}."},
+#                                 status=status.HTTP_400_BAD_REQUEST)
+#
+#             # Create the Group_Deployment_Vehicle_Fleet_Customer instance with deployment
+#             Group_Deployment_Vehicle_Fleet_Customer.objects.create(
+#                 group=group,
+#                 deployment=deployment,
+#                 # Add other required fields like vehicle, fleet based on your implementation
+#             )
+#
+#         # Validate and save the associated vehicles
+#         for vehicle_data in vehicles_data:
+#             vehicle_serializer = VehicleSerializer(data=vehicle_data)
+#             vehicle_serializer.is_valid(raise_exception=True)
+#             vehicle = vehicle_serializer.save()
+#
+#             # Associate the vehicle with the group
+#             Group_Deployment_Vehicle_Fleet_Customer.objects.create(
+#                 group=group,
+#                 vehicle=vehicle,
+#             )
+#
+#         # Validate and save the associated fleets
+#         for fleet_data in fleets_data:
+#             fleet_serializer = FleetSerializer(data=fleet_data)
+#             fleet_serializer.is_valid(raise_exception=True)
+#             fleet = fleet_serializer.save()
+#
+#             # Associate the fleet with the group
+#             Group_Deployment_Vehicle_Fleet_Customer.objects.create(
+#                 group=group,
+#                 fleet=fleet,
+#             )
+#
+#         response_data = {
+#             "message": "Group Added Successfully",
+#             "group_data": group_serializer.data,
+#         }
+#         return Response(response_data, status=status.HTTP_201_CREATED)
+
+class AddGroupAPIView(generics.GenericAPIView):
+    serializer_class = GroupSerializer
+
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        group_name = data.get('name')
+        vehicles_data = data.get('vehicles', [])
+        fleets_data = data.get('fleets', [])
+        deployments_data = data.get('deployments', [])
+        customer_data = data.get('customers', [])
+
+        # Check if a group with the same name already exists
+        if UserGroup.objects.filter(name=group_name).exists():
+            return Response({'message': 'Group with the same name already exists'},
+                            status=status.HTTP_208_ALREADY_REPORTED)
+
+        # Validate and get the actual Deployment objects based on provided IDs
+        for deployment in deployments_data:
+            deployment_id = deployment.get('id')
+            deployment_name = deployment.get('name')
+            try:
+                deployment_obj = Deployment.objects.get(id=deployment_id, deployment_name=deployment_name)
+            except Deployment.DoesNotExist:
+                return Response({"message": "Invalid Deployment ID or Name."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate and get the actual Customer objects based on provided IDs
+        for customer in customer_data:
+            customer_id = customer.get('id')
+            customer_name = customer.get('name')
+            try:
+                customer_obj = Customer.objects.get(id=customer_id, customer_name=customer_name)
+            except Customer.DoesNotExist:
+                return Response({"message": "Invalid Customer ID or Name."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate and get the actual Vehicle objects based on provided IDs
+        for vehicle_data in vehicles_data:
+            vehicle_id = vehicle_data.get('id')
+            vehicle_name = vehicle_data.get('name')
+            try:
+                vehicle_obj = Vehicle.objects.get(id=vehicle_id, vehicle_label=vehicle_name)
+            except Vehicle.DoesNotExist:
+                return Response({"message": f"Vehicle with ID or Name does not exist."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate and get the actual Fleet objects based on provided IDs
+        for fleet in fleets_data:
+            fleet_id = fleet.get('id')
+            fleet_name = fleet.get('name')
+            try:
+                fleet_obj = Fleet.objects.get(id=fleet_id, name=fleet_name)
+            except Fleet.DoesNotExist:
+                return Response({"message": f"Fleet with ID or Name does not exist."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        group = serializer.save()
+
+        # Store the response datas
+        group_res_data = []
+        vehicles_attached = []
+        customers_attached = []
+        fleets_attached = []
+        deployments_attached = []
+
+        Group_Deployment_Vehicle_Fleet_Customer.objects.create(group=group,
+                                                               fleet=fleet_obj,
+                                                               vehicle=vehicle_obj,
+                                                               deployment=deployment_obj,
+                                                               customer=customer_obj
+                                                               )
+        # Prepare the response for the attached vehicle,customr,fleets,deployments
+        group_res_data.append({
+            "group_id": group.id,
+            "group_name": group.name,
+            "group_status": group.status
+        }),
+        vehicles_attached.append({
+            "vehicle_id": vehicle_obj.id,
+            "vehicle_label": vehicle_obj.vehicle_label
+        }),
+
+        customers_attached.append({
+            "customer_id": customer_obj.id,
+            "customer_name": customer_obj.customer_name
+        }),
+        fleets_attached.append({
+            "fleet_id": fleet_obj.id,
+            "fleet_name": fleet_obj.name
+
+        }),
+        deployments_attached.append({
+            "deployment_id": deployment_obj.id,
+            "deployment_name": deployment_obj.deployment_name
+        })
+
+        response_data = {
+            "message": "Group added successfully.",
+            "group_data": group_res_data,
+            "attached_vehicles": vehicles_attached,
+            "attached_customers": customers_attached,
+            "attached_deployments": deployments_attached,
+            "attached_fleets": fleets_attached,
+        }
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class UpdateGroupAPIView(generics.RetrieveUpdateAPIView):
+    serializer_class = GroupSerializer
+
+    def get_object(self):
+        group_id = self.kwargs.get('id')
+        try:
+            group = UserGroup.objects.get(id=group_id)
+            return group
+        except UserGroup.DoesNotExist:
+            return Response({"message": "Group does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+    def update(self, request, *args, **kwargs):
+        group = self.get_object()
+        data = request.data
+        group_name = data.get('name')
+        vehicles_data = data.get('vehicles', [])
+        deployments_data = data.get('deployments', [])
+        customer_data = data.get('customers', [])
+        fleets_data = data.get('fleets', [])
+
+        # Check if a group with the same name already exists (excluding the current group)
+        if group_name and group_name.lower() != group.name.lower() and UserGroup.objects.filter(
+                name__iexact=group_name).exists():
+            return Response({'message': 'Group with the same name already exists'},
+                            status=status.HTTP_208_ALREADY_REPORTED)
+
+        # Validate and get the actual Deployment objects based on provided IDs
+        deployments_attached = []
+        for deployment in deployments_data:
+            deployment_id = deployment.get('id')
+            deployment_name = deployment.get('name')
+            try:
+                deployment_obj = Deployment.objects.get(id=deployment_id, deployment_name=deployment_name)
+            except Deployment.DoesNotExist:
+                return Response({"message": "Invalid Deployment ID or Name."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            deployments_attached.append({
+                "deployment_id": deployment_obj.id,
+                "deployment_name": deployment_obj.deployment_name
+            })
+
+        # Validate and get the actual Customer objects based on provided IDs
+        customers_attached = []
+        for customer in customer_data:
+            customer_id = customer.get('id')
+            customer_name = customer.get('name')
+            try:
+                customer_obj = Customer.objects.get(id=customer_id, customer_name=customer_name)
+            except Customer.DoesNotExist:
+                return Response({"message": "Invalid Customer ID or Name."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            customers_attached.append({
+                "customer_id": customer_obj.id,
+                "customer_name": customer_obj.customer_name
+            })
+
+        # Validate and get the actual Vehicle objects based on provided IDs
+        vehicles_attached = []
+        for vehicle_data in vehicles_data:
+            vehicle_id = vehicle_data.get('id')
+            vehicle_name = vehicle_data.get('name')
+            try:
+                vehicle_obj = Vehicle.objects.get(id=vehicle_id, vehicle_label=vehicle_name)
+            except Vehicle.DoesNotExist:
+                return Response({"message": f"Vehicle with ID or Name does not exist."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            vehicles_attached.append({
+                "vehicle_id": vehicle_obj.id,
+                "vehicle_label": vehicle_obj.vehicle_label
+            })
+
+        # Validate and get the actual Fleet objects based on provided IDs
+        fleets_attached = []
+        for fleet_data in fleets_data:
+            fleet_id = fleet_data.get('id')
+            fleet_name = fleet_data.get('name')
+            try:
+                fleet_obj = Fleet.objects.get(id=fleet_id, name=fleet_name)
+            except Fleet.DoesNotExist:
+                return Response({"message": f"Fleet with ID or Name does not exist."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            fleets_attached.append({
+                "fleet_id": fleet_obj.id,
+                "fleet_name": fleet_obj.name
+            })
+
+        serializer = self.get_serializer(group, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_group = serializer.save()
+
+        # Clear the existing related objects for the group
+        Group_Deployment_Vehicle_Fleet_Customer.objects.filter(group=updated_group).delete()
+
+        # Store the updated response data
+        group_res_data = []
+        fleets_attached = []
+        for fleet_data in fleets_attached:
+            fleet_id = fleet_data['fleet_id']
+            fleet_name = fleet_data['fleet_name']
+            fleet_obj = Fleet.objects.get(id=fleet_id, name=fleet_name)
+            fleets_attached.append({
+                "fleet_id": fleet_obj.id,
+                "fleet_name": fleet_obj.name
+            }),
+            group_res_data.append({
+                "group_id": group.id,
+                "group_name": group.name,
+                "group_status": group.status
+            })
+
+        response_data = {
+            "message": "Group updated successfully.",
+            "group_data": group_res_data,
+            "attached_vehicles": vehicles_attached,
+            "attached_customers": customers_attached,
+            "attached_deployments": deployments_attached,
+            "attached_fleets": fleets_attached
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
+
+class GetGroupAPIView(generics.ListAPIView):
+    serializer_class = GroupSerializer
+
+    def get_queryset(self):
+        queryset = UserGroup.objects.all()
+        group_id = self.request.query_params.get('id')
+        group_name = self.request.query_params.get('name')
+        group_status = self.request.query_params.get('status')
+
+        # Filter groups based on query parameters
+        if group_id:
+            queryset = queryset.filter(id=group_id)
+        if group_name:
+            queryset = queryset.filter(name=group_name)
+        if group_status:
+            queryset = queryset.filter(status=group_status)
+
+        return queryset
+
+class DeleteGroupAPIView(generics.GenericAPIView):
+    queryset = UserGroup.objects.all()
+    serializer_class = GroupSerializer
+    lookup_url_kwarg = 'id'
+
+    def delete(self, request, id):
+        try:
+            group =UserGroup.objects.get(id=id)
+        except UserGroup.DoesNotExist:
+            return Response({'message': 'Group  not found.'}, status=404)
+
+        group.delete()
+        return Response({'message': 'Group  deleted successfully.'}, status=200)

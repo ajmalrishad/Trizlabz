@@ -9,7 +9,9 @@ from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, Create
     DeleteCustomerAPIView, AddVariantCreateView, GetVariantAPIView, UpdateVariantAPIView, DeleteVariantAPIView, \
     Attachment_Sensor, GetAttachment_SensorAPIView, UpdateAttachmentAPIView, DeleteAttachment_SensorAPIView, \
     AddMapCreateView, GetMapListAPIView, UpdateMapAPIView, DeleteMapAPIView, AddDeploymentCreateView, \
-    UpdateDeploymentView, GetDeploymentAPIView, DeleteDeploymentAPIView, AddVehicleAPIView, UpdateVehicleAPIView,GetVehicleAPIView,DeleteVehicleAPIView
+    UpdateDeploymentView, GetDeploymentAPIView, DeleteDeploymentAPIView, AddVehicleAPIView, UpdateVehicleAPIView, \
+    GetVehicleAPIView, DeleteVehicleAPIView, AddFleetAPIView, UpdateFleetAPIView, GetFleetAPIView, DeleteFleetAPIView, \
+    AddGroupAPIView,UpdateGroupAPIView,GetGroupAPIView,DeleteGroupAPIView
 
 urlpatterns = [
     # User Management And Token
@@ -57,5 +59,15 @@ urlpatterns = [
     path('updatevehicle/<int:pk>', UpdateVehicleAPIView.as_view(), name='update-vehicle'),
     path('getvehicle', GetVehicleAPIView.as_view(), name='get-vehicle'),
     path('deletevehicle/<int:id>', DeleteVehicleAPIView.as_view(), name='delete_vehicle'),
+    # Fleet Management
+    path('addfleet', AddFleetAPIView.as_view(), name='addfleet'),
+    path('updatefleet/<int:pk>', UpdateFleetAPIView.as_view(), name='update-fleet'),
+    path('getfleet', GetFleetAPIView.as_view(), name='get-fleet'),
+    path('deletefleet/<int:id>', DeleteFleetAPIView.as_view(), name='delete-fleet'),
+    # User Group Management
+    path('addgroup', AddGroupAPIView.as_view(), name='addgroup'),
+    path('updategroup/<int:id>', UpdateGroupAPIView.as_view(), name='update'),
+    path('getgroup',GetGroupAPIView.as_view(), name='getgroup'),
+    path('deletegroup/<int:id>', DeleteGroupAPIView.as_view(), name='delete-fleet'),
 
 ]
