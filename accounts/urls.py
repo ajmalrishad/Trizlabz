@@ -11,7 +11,8 @@ from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, Create
     AddMapCreateView, GetMapListAPIView, UpdateMapAPIView, DeleteMapAPIView, AddDeploymentCreateView, \
     UpdateDeploymentView, GetDeploymentAPIView, DeleteDeploymentAPIView, AddVehicleAPIView, UpdateVehicleAPIView, \
     GetVehicleAPIView, DeleteVehicleAPIView, AddFleetAPIView, UpdateFleetAPIView, GetFleetAPIView, DeleteFleetAPIView, \
-    AddGroupAPIView,UpdateGroupAPIView,GetGroupAPIView,DeleteGroupAPIView
+    AddGroupAPIView, UpdateGroupAPIView, GetGroupAPIView, DeleteGroupAPIView, AddActionAPIView, UpdateActionAPIView, \
+    GetActionAPIView, DeleteActionAPIView
 
 urlpatterns = [
     # User Management And Token
@@ -67,7 +68,11 @@ urlpatterns = [
     # User Group Management
     path('addgroup', AddGroupAPIView.as_view(), name='addgroup'),
     path('updategroup/<int:id>', UpdateGroupAPIView.as_view(), name='update'),
-    path('getgroup',GetGroupAPIView.as_view(), name='getgroup'),
+    path('getgroup', GetGroupAPIView.as_view(), name='getgroup'),
     path('deletegroup/<int:id>', DeleteGroupAPIView.as_view(), name='delete-fleet'),
-
+    # Mission Management
+    path('api/administration/action-management/add-action', AddActionAPIView.as_view(), name='add-action'),
+    path('api/administration/action-management/update-action/<int:id>', UpdateActionAPIView.as_view(), name='update-action'),
+    path('api/administration/action-management/get-action', GetActionAPIView.as_view(), name='get-action'),
+    path('api/administration/action-management/delete-action/<int:id>', DeleteActionAPIView.as_view(), name='delete-action'),
 ]

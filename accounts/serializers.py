@@ -4,7 +4,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from .models import User, Role, Customer, Privilege, Variant, Attachment_or_Sensor_Master, \
-    Variant_or_Attachment_or_Sensor, Map, Deployment, Vehicle_Attachments, Vehicle, Fleet, UserGroup
+    Variant_or_Attachment_or_Sensor, Map, Deployment, Vehicle_Attachments, Vehicle, Fleet, UserGroup, Action
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -231,4 +231,10 @@ class GroupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserGroup
+        fields = '__all__'
+
+
+class ActionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Action
         fields = '__all__'

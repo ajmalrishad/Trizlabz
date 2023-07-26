@@ -206,5 +206,14 @@ class Group_Deployment_Vehicle_Fleet_Customer(models.Model):
     fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
 
-    # def __str__(self):
-    #     return self.group.name
+    def __str__(self):
+        return self.group.name
+
+
+# Mission Management
+class Action(models.Model):
+    name = models.CharField(max_length=255, blank=False, unique=True)
+    status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
