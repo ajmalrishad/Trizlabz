@@ -12,7 +12,8 @@ from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, Create
     UpdateDeploymentView, GetDeploymentAPIView, DeleteDeploymentAPIView, AddVehicleAPIView, UpdateVehicleAPIView, \
     GetVehicleAPIView, DeleteVehicleAPIView, AddFleetAPIView, UpdateFleetAPIView, GetFleetAPIView, DeleteFleetAPIView, \
     AddGroupAPIView, UpdateGroupAPIView, GetGroupAPIView, DeleteGroupAPIView, AddActionAPIView, UpdateActionAPIView, \
-    GetActionAPIView, DeleteActionAPIView
+    GetActionAPIView, DeleteActionAPIView, AddMissionAPIView, UpdateMissionAPIView, GetMissionAPIView, \
+    DeleteMissionAPIView
 
 urlpatterns = [
     # User Management And Token
@@ -70,9 +71,16 @@ urlpatterns = [
     path('updategroup/<int:id>', UpdateGroupAPIView.as_view(), name='update'),
     path('getgroup', GetGroupAPIView.as_view(), name='getgroup'),
     path('deletegroup/<int:id>', DeleteGroupAPIView.as_view(), name='delete-fleet'),
-    # Mission Management
+    # Action Management
     path('api/administration/action-management/add-action', AddActionAPIView.as_view(), name='add-action'),
-    path('api/administration/action-management/update-action/<int:id>', UpdateActionAPIView.as_view(), name='update-action'),
+    path('api/administration/action-management/update-action/<int:id>', UpdateActionAPIView.as_view(),
+         name='update-action'),
     path('api/administration/action-management/get-action', GetActionAPIView.as_view(), name='get-action'),
-    path('api/administration/action-management/delete-action/<int:id>', DeleteActionAPIView.as_view(), name='delete-action'),
+    path('api/administration/action-management/delete-action/<int:id>', DeleteActionAPIView.as_view(),
+         name='delete-action'),
+    # Mission Management
+    path('api/setup/mission-management/add-mission', AddMissionAPIView.as_view(), name='add-mission'),
+    path('api/setup/mission-management/update-mission/<int:id>', UpdateMissionAPIView.as_view(), name='update-mission'),
+    path('api/setup/mission-management/get-mission', GetMissionAPIView.as_view(), name='get-mission'),
+    path('api/setup/mission-management/delete-mission/<int:id>', DeleteMissionAPIView.as_view(), name='delete-mission'),
 ]

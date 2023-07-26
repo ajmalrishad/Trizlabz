@@ -9,10 +9,11 @@ from rest_framework_simplejwt.tokens import RefreshToken, OutstandingToken
 
 from .models import User, Role, Customer, Variant, Attachment_or_Sensor_Master, Variant_or_Attachment_or_Sensor, Map, \
     Deployment, Deployment_Maps, Vehicle, Vehicle_Attachments, Fleet, Fleet_Vehicle_Deployment, UserGroup, \
-    Group_Deployment_Vehicle_Fleet_Customer, Action
+    Group_Deployment_Vehicle_Fleet_Customer, Action, Mission, Mission_Fleet_Map_Deployment_Action
 from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer, UpdateUserSerializer, \
     DeleteUserSerializer, RoleSerializer, CustomerSerializer, VariantSerializer, Attachment_SensorSerializer, \
-    MapSerializer, DeploymentSerializer, VehicleSerializer, FleetSerializer, GroupSerializer, ActionSerializer
+    MapSerializer, DeploymentSerializer, VehicleSerializer, FleetSerializer, GroupSerializer, ActionSerializer, \
+    MissionSerializer
 
 
 # User Management Apis
@@ -2066,3 +2067,298 @@ class DeleteActionAPIView(generics.GenericAPIView):
         action.status = False
         action.save()
         return Response({'message': 'Action  deleted successfully.'}, status=200)
+
+
+# Missing Management
+class AddMissionAPIView(generics.GenericAPIView):
+    serializer_class = MissionSerializer
+
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        mission_name = data.get('name')
+        map_data = data.get('maps', [])
+        fleets_data = data.get('fleets', [])
+        deployments_data = data.get('deployments', [])
+        action_data = data.get('actions', [])
+
+        # Check if a mission with the same name already exists
+        if Mission.objects.filter(name=mission_name).exists():
+            return Response({'message': 'Mission with the same name already exists'},
+                            status=status.HTTP_208_ALREADY_REPORTED)
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        mission = serializer.save()
+
+        # Store the response data lists
+        mission_data = []
+        maps_attached = []
+        fleets_attached = []
+        deployments_attached = []
+        action_attached = []
+
+        # Loop through the maps data and create related objects
+        for map_item in map_data:
+            map_id = map_item.get('id')
+            map_name = map_item.get('name')
+            try:
+                map_obj = Map.objects.get(id=map_id, map_name=map_name)
+            except Map.DoesNotExist:
+                return Response({"message": f"Map with ID or Name does not exist."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            maps_attached.append({
+                "map_id": map_obj.id,
+                "map_name": map_obj.map_name,
+            })
+
+            # Loop through the fleets data and create related objects
+        for fleet_item in fleets_data:
+            fleet_id = fleet_item.get('id')
+            fleet_name = fleet_item.get('name')
+            try:
+                fleet_obj = Fleet.objects.get(id=fleet_id, name=fleet_name)
+            except Fleet.DoesNotExist:
+                return Response({"message": f"Fleet with ID or Name does not exist."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            fleets_attached.append({
+                "fleet_id": fleet_obj.id,
+                "fleet_name": fleet_obj.name,
+            })
+
+        # Loop through the deployments data and create related objects
+        for deployment_item in deployments_data:
+            deployment_id = deployment_item.get('id')
+            deployment_name = deployment_item.get('name')
+            try:
+                deployment_obj = Deployment.objects.get(id=deployment_id, deployment_name=deployment_name)
+            except Deployment.DoesNotExist:
+                return Response({"message": "Invalid Deployment ID or Name."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            deployments_attached.append({
+                "deployment_id": deployment_obj.id,
+                "deployment_name": deployment_obj.deployment_name,
+            })
+            for action in action_data:
+                id = action.get('id')
+                name = action.get('name')
+                try:
+                    action_obj = Action.objects.get(id=id, name=name)
+                except Action.DoesNotExist:
+                    return Response({"message": "Invalid Action ID or Name."},
+                                    status=status.HTTP_400_BAD_REQUEST)
+                Mission_Fleet_Map_Deployment_Action.objects.create(mission=mission, action=action_obj, map=map_obj,
+                                                                   deployment=deployment_obj, fleet=fleet_obj)
+                action_attached.append({
+                    "action_id": action_obj.id,
+                    "action_name": action_obj.name,
+                })
+
+        # Prepare the response data
+        mission_data.append({
+            "mission_id": mission.id,
+            "mission_name": mission.name,
+            "mission_status": mission.status,
+        })
+
+        response_data = {
+            "message": "Mission added successfully.",
+            "mission_data": mission_data,
+            "attached_maps": maps_attached,
+            "attached_deployments": deployments_attached,
+            "attached_fleets": fleets_attached,
+            "attached_actions": action_attached,
+        }
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class UpdateMissionAPIView(generics.GenericAPIView):
+    serializer_class = MissionSerializer
+
+    def get_object(self, id):
+        try:
+            return Mission.objects.get(id=id)
+        except Mission.DoesNotExist:
+            return None
+
+    def put(self, request, id, *args, **kwargs):
+        # Check if the mission with the given ID exists
+        mission = self.get_object(id)
+        if not mission:
+            return Response({'message': 'Mission not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+        mission_name = data.get('name')
+        map_data = data.get('maps', [])
+        fleets_data = data.get('fleets', [])
+        deployments_data = data.get('deployments', [])
+        action_data = data.get('actions', [])
+
+        # Check if a mission with the same name already exists (excluding the current mission)
+        if Mission.objects.filter(name=mission_name).exclude(id=id).exists():
+            return Response({'message': 'Mission with the same name already exists'},
+                            status=status.HTTP_208_ALREADY_REPORTED)
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+
+        # Update the mission object with the new data
+        mission.name = mission_name
+        # Add any additional fields that you want to update here.
+
+        # Save the updated mission object
+        mission.save()
+
+        # Perform updates for related objects (maps, fleets, deployments, and actions)
+        # Similar to the creation logic in the 'post' method, but instead of creating new objects, update existing ones.
+
+        # Loop through the maps data and update related objects
+        for map_item in map_data:
+            map_id = map_item.get('id')
+            map_name = map_item.get('name')
+            try:
+                map_obj = Map.objects.get(id=map_id, map_name=map_name)
+            except Map.DoesNotExist:
+                return Response({"message": f"Map with ID or Name does not exist."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            # Update the existing map object with any new data
+            map_obj.name = map_name
+            # Add any additional fields that you want to update here.
+
+            # Save the updated map object
+            map_obj.save()
+
+        # Loop through the fleets data and update related objects
+        for fleet_item in fleets_data:
+            fleet_id = fleet_item.get('id')
+            fleet_name = fleet_item.get('name')
+            try:
+                fleet_obj = Fleet.objects.get(id=fleet_id, name=fleet_name)
+            except Fleet.DoesNotExist:
+                return Response({"message": f"Fleet with ID or Name does not exist."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            # Update the existing fleet object with any new data
+            fleet_obj.name = fleet_name
+            # Add any additional fields that you want to update here.
+
+            # Save the updated fleet object
+            fleet_obj.save()
+
+        # Loop through the deployments data and update related objects
+        for deployment_item in deployments_data:
+            deployment_id = deployment_item.get('id')
+            deployment_name = deployment_item.get('name')
+            try:
+                deployment_obj = Deployment.objects.get(id=deployment_id, deployment_name=deployment_name)
+            except Deployment.DoesNotExist:
+                return Response({"message": "Invalid Deployment ID or Name."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            # Update the existing deployment object with any new data
+            deployment_obj.name = deployment_name
+            # Add any additional fields that you want to update here.
+
+            # Save the updated deployment object
+            deployment_obj.save()
+
+        # Loop through the actions data and update related objects
+        for action_item in action_data:
+            action_id = action_item.get('id')
+            action_name = action_item.get('name')
+            try:
+                action_obj = Action.objects.get(id=action_id, name=action_name)
+            except Action.DoesNotExist:
+                return Response({"message": "Invalid Action ID or Name."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            # Update the existing action object with any new data
+            action_obj.name = action_name
+            # Add any additional fields that you want to update here.
+
+            # Save the updated action object
+            action_obj.save()
+
+        # Prepare the response data
+        mission_data = {
+            "mission_id": mission.id,
+            "mission_name": mission.name,
+            "mission_status": mission.status,
+            # Include any other fields you want to include in the response.
+        }
+
+        response_data = {
+            "message": "Mission updated successfully.",
+            "mission_data": mission_data,
+            "attached_maps": map_data,
+            "attached_deployments": deployments_data,
+            "attached_fleets": fleets_data,
+            "attached_actions": action_data,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class GetMissionAPIView(generics.GenericAPIView):
+    def get(self, request, *args, **kwargs):
+        mission_id = request.query_params.get('id')
+        mission_name = request.query_params.get('name')
+        mission_status = request.query_params.get('status')
+
+        if mission_id is None and mission_name is None and mission_status is None:
+            return Response(
+                {"message": "At least one of mission_id, mission_name, or mission_status must be provided."},
+                status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            mission_queryset = Mission_Fleet_Map_Deployment_Action.objects.select_related(
+                'mission', 'deployment', 'map', 'fleet', 'action'
+            )
+            if mission_id:
+                mission_instance = mission_queryset.filter(id=mission_id).first()
+            elif mission_name:
+                mission_instance = mission_queryset.filter(name=mission_name).first()
+            elif mission_status:
+                mission_instance = mission_queryset.filter(
+                    Q(mission__status=mission_status)
+                ).first()
+
+            if mission_instance is None:
+                return Response({"message": "Mission not found."},
+                                status=status.HTTP_404_NOT_FOUND)
+
+            # Serialize the data
+            attached_map_data = MapSerializer(mission_instance.map).data
+            attached_deployment_data = DeploymentSerializer(mission_instance.deployment).data
+            attached_fleet_data = FleetSerializer(mission_instance.fleet).data
+            attached_action_data = ActionSerializer(mission_instance.action).data
+
+            mission_data = {
+                "message": "Mission Data Listing Successfully",
+                "mission_data": MissionSerializer(mission_instance.mission).data,
+                "attached_map": attached_map_data,
+                "fleet_data": attached_fleet_data,
+                "deployment_data": attached_deployment_data,
+                "action_data": attached_action_data,
+            }
+
+            return Response(mission_data, status=status.HTTP_200_OK)
+        except Mission_Fleet_Map_Deployment_Action.MultipleObjectsReturned:
+            return Response({"message": "Multiple missions with the provided query parameters."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+
+class DeleteMissionAPIView(generics.GenericAPIView):
+    queryset = Mission.objects.all()
+    serializer_class = MissionSerializer
+    lookup_url_kwarg = 'id'
+
+    def delete(self, request, id):
+        try:
+            mission = Mission.objects.get(id=id)
+        except Mission.DoesNotExist:
+            return Response({'message': 'Mission  not found.'}, status=404)
+
+        mission.status = False
+        mission.save()
+        return Response({'message': 'Mission  deleted successfully.'}, status=200)
