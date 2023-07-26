@@ -2362,3 +2362,37 @@ class DeleteMissionAPIView(generics.GenericAPIView):
         mission.status = False
         mission.save()
         return Response({'message': 'Mission  deleted successfully.'}, status=200)
+
+
+# Dashboard Management
+class DashBoardAPIView(generics.GenericAPIView):
+    def get(self, request, *args, **kw):
+        user_id = self.request.query_params.get('user_id')
+        customer_id = self.request.query_params.get('customer_id')
+        deployment_id = self.request.query_params.get('deployment_id')
+        fleet_id = self.request.query_params.get('fleet_id')
+
+        user_data = None
+        customer_data = None
+        deployment_data = None
+        fleet_data = None
+
+        if user_id:
+            user_data = User.objects.filter(id=user_id)
+        elif customer_id:
+            customer_data = Customer.objects.filter(id=customer_id)
+        elif deployment_id:
+            deployment_data = Deployment.objects.filter(id=deployment_id)
+        elif fleet_id:
+            fleet_data = Fleet.objects.filter(id=fleet_id)
+
+        response = {
+            "message": "Dashboard Listing Successfully",
+            "data": {
+                "users": User.objects.count(),
+                "customers":Customer.objects.count(),
+                "deployments": Deployment.objects.count(),
+                "fleets": Fleet.objects.count(),
+            }
+        }
+        return Response(response, status=status.HTTP_200_OK)

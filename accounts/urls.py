@@ -13,7 +13,7 @@ from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, Create
     GetVehicleAPIView, DeleteVehicleAPIView, AddFleetAPIView, UpdateFleetAPIView, GetFleetAPIView, DeleteFleetAPIView, \
     AddGroupAPIView, UpdateGroupAPIView, GetGroupAPIView, DeleteGroupAPIView, AddActionAPIView, UpdateActionAPIView, \
     GetActionAPIView, DeleteActionAPIView, AddMissionAPIView, UpdateMissionAPIView, GetMissionAPIView, \
-    DeleteMissionAPIView
+    DeleteMissionAPIView, DashBoardAPIView
 
 urlpatterns = [
     # User Management And Token
@@ -83,4 +83,6 @@ urlpatterns = [
     path('api/setup/mission-management/update-mission/<int:id>', UpdateMissionAPIView.as_view(), name='update-mission'),
     path('api/setup/mission-management/get-mission', GetMissionAPIView.as_view(), name='get-mission'),
     path('api/setup/mission-management/delete-mission/<int:id>', DeleteMissionAPIView.as_view(), name='delete-mission'),
+    # Dash Board
+    path('api/dashboard',DashBoardAPIView.as_view(), name='dashboard'),
 ]
