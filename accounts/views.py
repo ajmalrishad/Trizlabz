@@ -16,7 +16,7 @@ from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer,
     MissionSerializer
 
 
-# User Management Apis
+# User Management
 class RegisterView(generics.GenericAPIView):
     serializer_class = RegisterSerializer
 
@@ -85,7 +85,7 @@ class GetUsersAPIView(generics.GenericAPIView):
     queryset = User.objects.all()
     serializer_class = GetUserSerializer
 
-    # permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         # Get query parameters
@@ -132,7 +132,7 @@ class GetUsersAPIView(generics.GenericAPIView):
 class UpdateUsersAPIView(generics.GenericAPIView):
     serializer_class = UpdateUserSerializer
 
-    # permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAuthenticated,)
 
     def put(self, request, pk):
         try:
@@ -151,7 +151,7 @@ class UpdateUsersAPIView(generics.GenericAPIView):
 class DeleteUsersAPIView(generics.GenericAPIView):
     serializer_class = DeleteUserSerializer
 
-    # permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (IsAuthenticated,)
 
     def delete(self, request, pk):
         try:
@@ -163,8 +163,10 @@ class DeleteUsersAPIView(generics.GenericAPIView):
             return Response({'message': 'User not found'}, status=404)
 
 
-# Role Management Apis
+# Role Management
 class CreateRoleView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def post(self, request):
         serializer = RoleSerializer(data=request.data)
         if serializer.is_valid():
@@ -180,6 +182,8 @@ class CreateRoleView(generics.GenericAPIView):
 
 
 class RoleUpdateView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def put(self, request, role_id):
         try:
             role = Role.objects.get(id=role_id)
@@ -194,6 +198,8 @@ class RoleUpdateView(generics.GenericAPIView):
 
 
 class RoleDeleteView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def delete(self, request, role_id):
         try:
             role = Role.objects.get(id=role_id)
@@ -206,6 +212,8 @@ class RoleDeleteView(generics.GenericAPIView):
 
 
 class GetRoleAPIView(generics.ListAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
 
@@ -249,8 +257,9 @@ class GetRoleAPIView(generics.ListAPIView):
         return Response(response_data, status=200)
 
 
-# Customer Management Apis
+# Customer Management
 class CustomerCreateView(generics.CreateAPIView):
+    permission_classes = (IsAuthenticated,)
     serializer_class = CustomerSerializer
 
     def post(self, request, *args, **kwargs):
@@ -274,6 +283,8 @@ class CustomerCreateView(generics.CreateAPIView):
 
 
 class GetCustomerAPIView(generics.ListAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
 
@@ -315,6 +326,8 @@ class GetCustomerAPIView(generics.ListAPIView):
 
 
 class UpdateCustomerAPIView(generics.UpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
     lookup_field = 'id'
@@ -328,6 +341,8 @@ class UpdateCustomerAPIView(generics.UpdateAPIView):
 
 
 class DeleteCustomerAPIView(generics.DestroyAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def delete(self, request, customer_id):
         try:
             customer = Customer.objects.get(id=customer_id)
@@ -338,100 +353,10 @@ class DeleteCustomerAPIView(generics.DestroyAPIView):
         customer.save()
         return Response({'message': 'customer deleted successfully.'}, status=200)
 
-
-# class SensorCreateView(generics.GenericAPIView):
-#     def post(self, request):
-#         serializer = Attachment_SensorSerializer(data=request.data)
-#         if serializer.is_valid():
-#             name = serializer.validated_data['name']
-#             if Attachment_or_Sensor_Master.objects.filter(name=name).exists():
-#                 return Response(
-#                     {"message": "A Sensor with the same name already exists."},
-#                     status=status.HTTP_400_BAD_REQUEST
-#                 )
-#             serializer.save()
-#             message = {
-#                 "message": "Sensor Added Successfully",
-#                 "data": serializer.data
-#             }
-#             return Response(message, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-# update Sensor
-# class UpdateSensorAPIView(generics.UpdateAPIView):
-#     queryset = Sensor.objects.all()
-#     serializer_class = SensorSerializer
-#     lookup_field = 'sensor_id'
-#
-#     def put(self, request, *args, **kwargs):
-#         instance = self.get_object()
-#         serializer = self.get_serializer(instance, data=request.data, partial=True)
-#         serializer.is_valid(raise_exception=True)
-#         self.perform_update(serializer)
-#         response_data = {
-#             'message': 'Sensor Updated successfully',
-#             'status': 'success',
-#             'data': serializer.data
-#         }
-#         return Response(response_data)
-#
-#
-# # Get Sensor
-# class GetSensorAPIView(generics.ListAPIView):
-#     queryset = Sensor.objects.all()
-#     serializer_class = SensorSerializer
-#
-#     def get(self, request, *args, **kwargs):
-#         # Get query parameters
-#         sensor_id = self.request.query_params.get('sensor_id')
-#         sensor_name = self.request.query_params.get('sensor_name')
-#         sensor_status = self.request.query_params.get('sensor_status')
-#
-#         if sensor_id:
-#             try:
-#                 sensor = Sensor.objects.get(sensor_id=sensor_id)
-#                 serializer = self.get_serializer(sensor)
-#                 response_data = {
-#                     'message': 'Sensor retrieved successfully',
-#                     'status': 'success',
-#                     'data': serializer.data
-#                 }
-#                 return Response(response_data, status=200)
-#             except Sensor.DoesNotExist:
-#                 return Response({'message': 'Sensor not found.'}, status=404)
-#
-#         if sensor_name and sensor_status:
-#             sensors = self.queryset.filter(sensor_name=sensor_name, sensor_status=sensor_status)
-#         elif sensor_name:
-#             sensors = self.queryset.filter(sensor_name=sensor_name)
-#         elif sensor_status:
-#             sensors = self.queryset.filter(sensor_status=sensor_status)
-#         else:
-#             sensors = self.get_queryset()
-#
-#         serializer = self.get_serializer(sensors, many=True)
-#         response_data = {
-#             'message': 'Sensor listing successfully',
-#             'status': 'success',
-#             'data': serializer.data
-#         }
-#         return Response(response_data, status=200)
-#
-#
-# # Delete Sensor
-# class DeleteSensorAPIView(generics.DestroyAPIView):
-#     def delete(self, request, sensor_id):
-#         try:
-#             sensor = Sensor.objects.get(sensor_id=sensor_id)
-#         except Sensor.DoesNotExist:
-#             return Response({'message': 'Sensor not found.'}, status=404)
-#
-#         sensor.delete()
-#         return Response({'message': 'Sensor deleted successfully.'}, status=200)
-
-
+# Attachment or Sensor
 class Attachment_Sensor(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def post(self, request):
         attachment_or_sensor = self.request.data.get('attachment_or_sensor')
         name = self.request.data.get('name')
@@ -496,6 +421,8 @@ class Attachment_Sensor(generics.GenericAPIView):
 
 
 class GetAttachment_SensorAPIView(generics.ListAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def get(self, request, *args, **kwargs):
         # Get query parameters
         attachment_sensor_id = self.request.query_params.get('attachment_sensor_id')
@@ -575,6 +502,8 @@ class GetAttachment_SensorAPIView(generics.ListAPIView):
 
 
 class UpdateAttachmentAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def put(self, request, attachment_sensor_id):
         try:
             attachment_or_sensor = Attachment_or_Sensor_Master.objects.get(attachment_sensor_id=attachment_sensor_id)
@@ -589,6 +518,8 @@ class UpdateAttachmentAPIView(generics.GenericAPIView):
 
 
 class DeleteAttachment_SensorAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def delete(self, request):
         attachment_sensor_id = self.request.query_params.get('id')
 
@@ -601,116 +532,10 @@ class DeleteAttachment_SensorAPIView(generics.GenericAPIView):
         attachment_or_sensor.save()
         return Response({'message': 'Attachment or sensor deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
 
-    # def get(self, request, *args, **kwargs):
-    #     # Get query parameters
-    #
-    #
-    #     if sensor_id:
-    #         try:
-    #             sensor = Attachment_or_Sensor_Master.objects.get(sensor_id=sensor_id)
-    #             serializer = self.get_serializer(sensor)
-    #             response_data = {
-    #                 'message': 'Sensor retrieved successfully',
-    #                 'status': 'success',
-    #                 'data': serializer.data
-    #             }
-    #             return Response(response_data, status=200)
-    #         except Sensor.DoesNotExist:
-    #             return Response({'message': 'Sensor not found.'}, status=404)
-    #
-    #     if sensor_name and sensor_status:
-    #         sensors = self.queryset.filter(sensor_name=sensor_name, sensor_status=sensor_status)
-    #     elif sensor_name:
-    #         sensors = self.queryset.filter(sensor_name=sensor_name)
-    #     elif sensor_status:
-    #         sensors = self.queryset.filter(sensor_status=sensor_status)
-    #     else:
-    #         sensors = self.get_queryset()
-    #
-    #     serializer = self.get_serializer(sensors, many=True)
-    #     response_data = {
-    #         'message': 'Sensor listing successfully',
-    #         'status': 'success',
-    #         'data': serializer.data
-    #     }
-    #     return Response(response_data, status=200)
-
-
-# upadte Attachment
-# class UpdateAttachmentAPIView(generics.UpdateAPIView):
-#     queryset = Attachment.objects.all()
-#     serializer_class = Attachment_SensorSerializer
-#     lookup_field = 'attachment_id'
-#
-#     def put(self, request, *args, **kwargs):
-#         instance = self.get_object()
-#         serializer = self.get_serializer(instance, data=request.data, partial=True)
-#         serializer.is_valid(raise_exception=True)
-#         self.perform_update(serializer)
-#         response_data = {
-#             'message': 'Attachment Updated successfully',
-#             'status': 'success',
-#             'data': serializer.data
-#         }
-#         return Response(response_data)
-#
-#
-# # Get Attachment
-# class Attachment_Sensor_GetView(generics.ListAPIView):
-#     queryset = Attachment.objects.all()
-#     serializer_class = Attachment_SensorSerializer
-#
-#     def get(self, request, *args, **kwargs):
-#         # Get query parameters
-#         attachment_id = self.request.query_params.get('attachment_id')
-#         attachment_name = self.request.query_params.get('attachment_name')
-#         attachment_status = self.request.query_params.get('attachment_status')
-#
-#         if attachment_id:
-#             try:
-#                 attachment = Attachment.objects.get(attachment_id=attachment_id)
-#                 serializer = self.get_serializer(attachment)
-#                 response_data = {
-#                     'message': 'Attachment retrieved successfully',
-#                     'status': 'success',
-#                     'data': serializer.data
-#                 }
-#                 return Response(response_data, status=200)
-#             except Attachment.DoesNotExist:
-#                 return Response({'message': 'Attachment not found.'}, status=404)
-#
-#         if attachment_name and attachment_status:
-#             attachments = self.queryset.filter(attachment_name=attachment_name, attachment_status=attachment_status)
-#         elif attachment_name:
-#             attachments = self.queryset.filter(attachment_name=attachment_name)
-#         elif attachment_status:
-#             attachments = self.queryset.filter(attachment_status=attachment_status)
-#         else:
-#             attachments = self.get_queryset()
-#
-#         serializer = self.get_serializer(attachments, many=True)
-#         response_data = {
-#             'message': 'Attachment listing successfully',
-#             'status': 'success',
-#             'data': serializer.data
-#         }
-#         return Response(response_data, status=200)
-#
-#
-# # Delete Attachment
-# class DeleteAttachmentAPIView(generics.DestroyAPIView):
-#     def delete(self, request, attachment_id):
-#         try:
-#             attachment = Attachment.objects.get(attachment_id=attachment_id)
-#         except Attachment.DoesNotExist:
-#             return Response({'message': 'Attachment not found.'}, status=404)
-#
-#         attachment.delete()
-#         return Response({'message': 'Attachment deleted successfully.'}, status=200)
-
-
 # Variant Management Apis
 class AddVariantCreateView(generics.CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Variant.objects.all()
     serializer_class = VariantSerializer
 
@@ -765,98 +590,70 @@ class AddVariantCreateView(generics.CreateAPIView):
         return Response(variant_serializer.data, status=status.HTTP_201_CREATED)
 
 
-# class GetVariantAPIView(generics.ListAPIView):
-#     queryset = Variant.objects.all()
-#     serializer_class = GetVariantSerializer
-#
-#     def get(self, request, *args, **kwargs):
-#         # Get query parameters
-#         variant_id = self.request.query_params.get('variant_id')
-#         variant_name = self.request.query_params.get('variant_name')
-#         variant_status = self.request.query_params.get('variant_status')
-#
-#         if variant_id:
-#             try:
-#                 variant = Variant.objects.get(variant_id=variant_id)
-#                 variant_serializer = GetVariantSerializer(variant)
-#                 # sensor_attachment = Variant_or_Attachment_or_Sensor.objects.get(variant_id=variant_id)
-#                 # sensor_attachment_serializer = GetSensor_AttachmentSerializer()
-#
-#                 response_data = {
-#                     'message': 'Variant retrieved successfully',
-#                     'status': 'success',
-#                     'data': {
-#                         'variant_id': variant_serializer.data['variant_id'],
-#                         'variant_name': variant_serializer.data['variant_name'],
-#                         'variant_description': variant_serializer.data['variant_description'],
-#                         'variant_status': variant_serializer.data['variant_status'],
-#                         'attachment_option': variant_serializer.data,
-#                         'sensor_option': variant_serializer.data,
-#                     },
-#                 }
-#                 return Response(response_data, status=200)
-#             except Variant.DoesNotExist:
-#                 return Response({'message': 'Variant not found.'}, status=404)
-#
-#         if variant_name and variant_status:
-#             variants = self.queryset.filter(variant_name=variant_name, variant_status=variant_status)
-#         elif variant_name:
-#             variants = self.queryset.filter(variant_name=variant_name)
-#         elif variant_status:
-#             variants = self.queryset.filter(variant_status=variant_status)
-#         else:
-#             variants = self.get_queryset()
-#
-#         serializer = self.get_serializer(variants, many=True)
-#         response_data = {
-#             'message': 'Variants listed successfully',
-#             'status': 'success',
-#             'data': serializer.data
-#         }
-#         return Response(response_data, status=200)
-
-# TODO: Get variant using query
 class GetVariantAPIView(generics.RetrieveAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Variant.objects.all()
     serializer_class = VariantSerializer
-    lookup_url_kwarg = 'pk'
 
     def get(self, request, *args, **kwargs):
-        variant = self.get_object()
+        # Get the query parameters
+        variant_id = request.query_params.get('id')
+        variant_status = request.query_params.get('status')
+        variant_name = request.query_params.get('name')
 
-        attachment_options = Attachment_or_Sensor_Master.objects.filter(
-            variant_or_attachment_or_sensor__variant=variant, attachment_or_sensor=1)
-        sensor_options = Attachment_or_Sensor_Master.objects.filter(variant_or_attachment_or_sensor__variant=variant,
-                                                                    attachment_or_sensor=2)
+        # Filter the queryset based on the provided parameters
+        queryset = self.get_queryset()
+        if variant_id:
+            queryset = queryset.filter(variant_id=variant_id)
+        if variant_status:
+            queryset = queryset.filter(variant_status=variant_status)
+        if variant_name:
+            queryset = queryset.filter(variant_name=variant_name)
 
-        attachment_data = []
-        sensor_data = []
+        # Get the variant objects from the filtered queryset
+        variants = list(queryset)
+        if not variants:
+            return Response({"error": "Variants not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        for attachment in attachment_options:
-            attachment_data.append({
-                'attachment_id': attachment.attachment_sensor_id,
-                'attachment_name': attachment.name
-            })
+        response_data = []
+        for variant in variants:
+            attachment_options = Attachment_or_Sensor_Master.objects.filter(
+                variant_or_attachment_or_sensor__variant=variant, attachment_or_sensor=1)
+            sensor_options = Attachment_or_Sensor_Master.objects.filter(
+                variant_or_attachment_or_sensor__variant=variant, attachment_or_sensor=2)
 
-        for sensor in sensor_options:
-            sensor_data.append({
-                'sensor_id': sensor.attachment_sensor_id,
-                'sensor_name': sensor.name
-            })
+            attachment_data = []
+            sensor_data = []
 
-        response_data = {
-            'variant_id': variant.pk,
-            'variant_name': variant.variant_name,
-            'variant_description': variant.variant_description,
-            'variant_status': variant.variant_status,
-            'attachment_option': attachment_data,
-            'sensor_option': sensor_data
-        }
+            for attachment in attachment_options:
+                attachment_data.append({
+                    'attachment_id': attachment.attachment_sensor_id,
+                    'attachment_name': attachment.name
+                })
+
+            for sensor in sensor_options:
+                sensor_data.append({
+                    'sensor_id': sensor.attachment_sensor_id,
+                    'sensor_name': sensor.name
+                })
+
+            variant_data = {
+                'variant_id': variant.pk,
+                'variant_name': variant.variant_name,
+                'variant_description': variant.variant_description,
+                'variant_status': variant.variant_status,
+                'attachment_option': attachment_data,
+                'sensor_option': sensor_data
+            }
+
+            response_data.append(variant_data)
 
         return Response(response_data, status=status.HTTP_200_OK)
 
-
 class UpdateVariantAPIView(generics.UpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Variant.objects.all()
     serializer_class = VariantSerializer
 
@@ -924,6 +721,8 @@ class UpdateVariantAPIView(generics.UpdateAPIView):
 
 
 class DeleteVariantAPIView(generics.DestroyAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def delete(self, request, variant_id):
         try:
             variant = Variant.objects.get(variant_id=variant_id)
@@ -937,6 +736,8 @@ class DeleteVariantAPIView(generics.DestroyAPIView):
 
 # Map Management
 class AddMapCreateView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def post(self, request, ):
         customer_id = request.data.get('customer_id')
         map_name = request.data.get('map_name')
@@ -962,6 +763,8 @@ class AddMapCreateView(generics.GenericAPIView):
 
 
 class GetMapListAPIView(generics.ListCreateAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def get(self, request):
         map_id = request.query_params.get("map_id")
         map_name = request.query_params.get('map_name')
@@ -991,6 +794,8 @@ class GetMapListAPIView(generics.ListCreateAPIView):
 
 
 class UpdateMapAPIView(generics.UpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Map.objects.all()
     serializer_class = MapSerializer
     lookup_field = 'id'
@@ -1009,6 +814,8 @@ class UpdateMapAPIView(generics.UpdateAPIView):
 
 
 class DeleteMapAPIView(generics.DestroyAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def delete(self, request, id):
         try:
             map = Map.objects.get(id=id)
@@ -1021,6 +828,8 @@ class DeleteMapAPIView(generics.DestroyAPIView):
 
 
 class AddDeploymentCreateView(generics.CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Deployment.objects.all()
     serializer_class = DeploymentSerializer
 
@@ -1090,6 +899,8 @@ class AddDeploymentCreateView(generics.CreateAPIView):
 
 
 class UpdateDeploymentView(generics.UpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Deployment.objects.all()
     serializer_class = DeploymentSerializer
     lookup_field = 'id'
@@ -1171,6 +982,8 @@ class UpdateDeploymentView(generics.UpdateAPIView):
 
 
 class GetDeploymentAPIView(generics.ListAPIView):
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = DeploymentSerializer
 
     def get_queryset(self):
@@ -1228,6 +1041,8 @@ class GetDeploymentAPIView(generics.ListAPIView):
 
 
 class DeleteDeploymentAPIView(generics.DestroyAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def delete(self, request, id):
         try:
             deployment = Deployment.objects.get(id=id)
@@ -1241,6 +1056,8 @@ class DeleteDeploymentAPIView(generics.DestroyAPIView):
 
 # Vehicle Management
 class AddVehicleAPIView(generics.CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def post(self, request, *args, **kwargs):
         data = request.data
         attachment_options_data = data.get('attachment_option', [])
@@ -1318,6 +1135,8 @@ class AddVehicleAPIView(generics.CreateAPIView):
 
 
 class UpdateVehicleAPIView(generics.UpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def put(self, request, *args, **kwargs):
         data = request.data
         vehicle_id = kwargs.get('pk')
@@ -1396,6 +1215,8 @@ class UpdateVehicleAPIView(generics.UpdateAPIView):
 
 
 class GetVehicleAPIView(generics.ListAPIView):
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = VehicleSerializer
 
     def get_queryset(self):
@@ -1453,6 +1274,8 @@ class GetVehicleAPIView(generics.ListAPIView):
 
 
 class DeleteVehicleAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
     lookup_url_kwarg = 'id'
@@ -1470,6 +1293,8 @@ class DeleteVehicleAPIView(generics.GenericAPIView):
 
 # Fleet Management
 class AddFleetAPIView(generics.CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = FleetSerializer
 
     def post(self, request, *args, **kwargs):
@@ -1526,6 +1351,8 @@ class AddFleetAPIView(generics.CreateAPIView):
 
 
 class UpdateFleetAPIView(generics.UpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Fleet.objects.all()
     serializer_class = FleetSerializer
 
@@ -1576,6 +1403,8 @@ class UpdateFleetAPIView(generics.UpdateAPIView):
 
 
 class GetFleetAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Fleet.objects.all()
     serializer_class = FleetSerializer
 
@@ -1644,6 +1473,8 @@ class GetFleetAPIView(generics.GenericAPIView):
 
 
 class DeleteFleetAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Fleet.objects.all()
     serializer_class = FleetSerializer
     lookup_url_kwarg = 'id'
@@ -1661,6 +1492,8 @@ class DeleteFleetAPIView(generics.GenericAPIView):
 
 # Group Management
 class AddGroupAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = GroupSerializer
 
     def post(self, request, *args, **kwargs):
@@ -1770,6 +1603,8 @@ class AddGroupAPIView(generics.GenericAPIView):
 
 
 class UpdateGroupAPIView(generics.RetrieveUpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = GroupSerializer
 
     def get_object(self):
@@ -1891,6 +1726,8 @@ class UpdateGroupAPIView(generics.RetrieveUpdateAPIView):
 
 
 class GetGroupAPIView(generics.ListAPIView):
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = GroupSerializer
 
     def get(self, request, *args, **kwargs):
@@ -1952,6 +1789,8 @@ class GetGroupAPIView(generics.ListAPIView):
 
 
 class DeleteGroupAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = UserGroup.objects.all()
     serializer_class = GroupSerializer
     lookup_url_kwarg = 'id'
@@ -1968,6 +1807,8 @@ class DeleteGroupAPIView(generics.GenericAPIView):
 
 
 class AddActionAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = ActionSerializer
 
     def post(self, request, *args, **kwargs):
@@ -1992,6 +1833,8 @@ class AddActionAPIView(generics.GenericAPIView):
 
 
 class UpdateActionAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = ActionSerializer
 
     def put(self, request, id, *args, **kwargs):
@@ -2021,6 +1864,8 @@ class UpdateActionAPIView(generics.GenericAPIView):
 
 
 class GetActionAPIView(generics.ListAPIView):
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = ActionSerializer
 
     def get(self, request, *args, **kwargs):
@@ -2054,6 +1899,8 @@ class GetActionAPIView(generics.ListAPIView):
 
 
 class DeleteActionAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Action.objects.all()
     serializer_class = ActionSerializer
     lookup_url_kwarg = 'id'
@@ -2071,6 +1918,8 @@ class DeleteActionAPIView(generics.GenericAPIView):
 
 # Missing Management
 class AddMissionAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = MissionSerializer
 
     def post(self, request, *args, **kwargs):
@@ -2172,6 +2021,8 @@ class AddMissionAPIView(generics.GenericAPIView):
 
 
 class UpdateMissionAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = MissionSerializer
 
     def get_object(self, id):
@@ -2300,6 +2151,8 @@ class UpdateMissionAPIView(generics.GenericAPIView):
 
 
 class GetMissionAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def get(self, request, *args, **kwargs):
         mission_id = request.query_params.get('id')
         mission_name = request.query_params.get('name')
@@ -2349,6 +2202,8 @@ class GetMissionAPIView(generics.GenericAPIView):
 
 
 class DeleteMissionAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     queryset = Mission.objects.all()
     serializer_class = MissionSerializer
     lookup_url_kwarg = 'id'
@@ -2366,6 +2221,8 @@ class DeleteMissionAPIView(generics.GenericAPIView):
 
 # Dashboard Management
 class DashBoardAPIView(generics.GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
     def get(self, request, *args, **kw):
         user_id = self.request.query_params.get('user_id')
         customer_id = self.request.query_params.get('customer_id')
@@ -2390,7 +2247,7 @@ class DashBoardAPIView(generics.GenericAPIView):
             "message": "Dashboard Listing Successfully",
             "data": {
                 "users": User.objects.count(),
-                "customers":Customer.objects.count(),
+                "customers": Customer.objects.count(),
                 "deployments": Deployment.objects.count(),
                 "fleets": Fleet.objects.count(),
             }
