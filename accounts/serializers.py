@@ -7,23 +7,36 @@ from .models import User, Role, Customer, Privilege, Variant, Attachment_or_Sens
     Variant_or_Attachment_or_Sensor, Map, Deployment, Vehicle_Attachments, Vehicle, Fleet, UserGroup, Action, Mission
 
 
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = '__all__'
+
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(max_length=68, min_length=6, write_only=True)
     cloud_password = serializers.CharField(max_length=100, min_length=6, write_only=True)
+    customer_id = serializers.CharField(required=False)  # Optional field for customer ID
 
     class Meta:
         model = User
-        fields = '__all__'
+        fields = ['id', 'customer_id', 'name', 'username', 'email', 'phone', 'password', 'role', 'trizlabz_user',
+                  'tenet_id', 'cloud_username', 'cloud_password']
 
     def validate(self, attrs):
         username = attrs.get('username', '')
         if not username.isalnum():
-            raise serializers.ValidationError(
-                self.default_error_messages)
+            raise serializers.ValidationError("Username should contain only alphanumeric characters.")
         return attrs
 
     def create(self, validated_data):
-        return User.objects.create_user(**validated_data)
+        customer_id = validated_data.pop('customer_id', None)
+        user = User.objects.create_user(**validated_data)
+        if customer_id:
+            customer = customer_id
+            user.customer = customer
+            user.save()
+        return user
 
 
 class LoginSerializer(serializers.ModelSerializer):
@@ -83,13 +96,13 @@ class RefreshTokenSerializer(serializers.Serializer):
 class GetUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = '__all__'
+        exclude = ['password','last_login','is_staff','is_superuser','is_active','date_joined','created_at','updated_at','groups','user_permissions']
 
 
 class UpdateUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'user_id', 'name', 'username', 'email', 'phone', 'profile_image', 'role', 'trizlabz_user',
+        fields = ['id', 'name', 'username', 'email', 'phone', 'profile_image', 'role', 'trizlabz_user',
                   'cloud_username']
         password = serializers.CharField(max_length=68, min_length=6, write_only=True)
         cloud_password = serializers.CharField(max_length=100, min_length=6, write_only=True)
@@ -122,12 +135,6 @@ class RoleSerializer(serializers.ModelSerializer):
             Privilege.objects.create(role=role, **privilege_data)
 
         return role
-
-
-class CustomerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Customer
-        fields = '__all__'
 
 
 class Attachment_SensorSerializer(serializers.ModelSerializer):
@@ -169,9 +176,10 @@ class GetSensor_AttachmentSerializer(serializers.ModelSerializer):
 
 # Map Management
 class MapSerializer(serializers.ModelSerializer):
+    customer_id = serializers.CharField(required=False)  # Optional field for customer ID
     class Meta:
         model = Map
-        fields = '__all__'
+        fields = ['id','map_name','map_description','customer_id','map_layout','path_layout']
 
 
 class DeploymentSerializer(serializers.ModelSerializer):

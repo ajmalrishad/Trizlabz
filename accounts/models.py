@@ -5,7 +5,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 # Create your models here.
 class Customer(models.Model):
-    id = models.AutoField(primary_key=True)
     customer_name = models.CharField(max_length=100, unique=True)
     address_line1 = models.CharField(max_length=100)
     address_line2 = models.CharField(max_length=100)
@@ -36,6 +35,8 @@ class User(AbstractUser):
         SUPERADMIN = "Superadmin"
 
     # base_role = Role.OPERATOR
+    first_name = None
+    last_name = None
     username = models.CharField(max_length=200, null=False, unique=True)
     name = models.CharField(max_length=200, null=True)
     email = models.EmailField(max_length=255, unique=True)
@@ -46,7 +47,6 @@ class User(AbstractUser):
     tenet_id = models.CharField(max_length=200, null=True)
     cloud_username = models.CharField(max_length=200, null=True)
     cloud_password = models.CharField(max_length=200, null=True)
-    customer_id = models.OneToOneField(Customer, on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
 
@@ -56,6 +56,14 @@ class User(AbstractUser):
             'refresh': str(refresh),
             'access': str(refresh.access_token)
         }
+
+
+class Customer_User(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.user.name
 
 
 class Role(models.Model):
@@ -114,7 +122,6 @@ class Variant_or_Attachment_or_Sensor(models.Model):
 class Map(models.Model):
     map_name = models.CharField(max_length=255, unique=True)
     map_description = models.CharField(max_length=255, null=True)
-    customer_id = models.CharField(max_length=255)
     map_layout = models.URLField()
     path_layout = models.JSONField()
     map_status = models.BooleanField(default=True)
@@ -123,6 +130,14 @@ class Map(models.Model):
 
     def __str__(self):
         return self.map_name
+
+
+class Map_Customer(models.Model):
+    map = models.ForeignKey(Map, on_delete=models.CASCADE)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.map.name
 
 
 # Deployment Management
@@ -238,5 +253,6 @@ class Mission_Fleet_Map_Deployment_Action(models.Model):
     map = models.ForeignKey(Map, on_delete=models.CASCADE)
     deployment = models.ForeignKey(Deployment, on_delete=models.CASCADE)
     action = models.ForeignKey(Action, on_delete=models.CASCADE)
+
     def __str__(self):
         return self.mission.name

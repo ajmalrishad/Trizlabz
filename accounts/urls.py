@@ -16,13 +16,13 @@ from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, Create
     DeleteMissionAPIView, DashBoardAPIView
 
 urlpatterns = [
-    # User Management And Token
+    # User Management
     path('api/administration/user-management/add-user', views.RegisterView.as_view(), name="register"),
     path('api/login', views.LoginAPIView.as_view(), name="login"),
     path('api/administration/user-management/get-user', views.GetUsersAPIView.as_view(), name="logout"),
     path('api/logout', LogoutAPIView.as_view(), name='logout_token'),
-    path('api/administration/user-management/update-user/<int:pk>', UpdateUsersAPIView.as_view(), name='update_user'),
-    path('api/administration/user-management/delete-user/<int:pk>', DeleteUsersAPIView.as_view(), name='delete_user'),
+    path('api/administration/user-management/update-user/<int:id>', UpdateUsersAPIView.as_view(), name='update_user'),
+    path('api/administration/user-management/delete-user/<int:id>', DeleteUsersAPIView.as_view(), name='delete_user'),
     # Token Management
     path('api/token', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh', TokenRefreshView.as_view(), name='token_refresh'),

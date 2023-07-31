@@ -9,7 +9,8 @@ from rest_framework_simplejwt.tokens import RefreshToken, OutstandingToken
 
 from .models import User, Role, Customer, Variant, Attachment_or_Sensor_Master, Variant_or_Attachment_or_Sensor, Map, \
     Deployment, Deployment_Maps, Vehicle, Vehicle_Attachments, Fleet, Fleet_Vehicle_Deployment, UserGroup, \
-    Group_Deployment_Vehicle_Fleet_Customer, Action, Mission, Mission_Fleet_Map_Deployment_Action
+    Group_Deployment_Vehicle_Fleet_Customer, Action, Mission, Mission_Fleet_Map_Deployment_Action, Customer_User, \
+    Map_Customer
 from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer, UpdateUserSerializer, \
     DeleteUserSerializer, RoleSerializer, CustomerSerializer, VariantSerializer, Attachment_SensorSerializer, \
     MapSerializer, DeploymentSerializer, VehicleSerializer, FleetSerializer, GroupSerializer, ActionSerializer, \
@@ -20,27 +21,29 @@ from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer,
 class RegisterView(generics.GenericAPIView):
     serializer_class = RegisterSerializer
 
+    @transaction.atomic
     def post(self, request):
-        customer_id = request.data.get('customer_id')
-
-        # Check if the customer_id is valid and exists in the customer table
-        if customer_id and not Customer.objects.filter(id=customer_id).exists():
-            messages = "Invalid customer_id or customer does not exist."
-            response_data = {
-                'messages': messages
-            }
-            return Response(response_data, status=status.HTTP_404_NOT_FOUND)
-        user = request.data
-        serializer = self.serializer_class(data=user)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+
+        customer_id = serializer.validated_data.get('customer_id', None)
+
+        user = serializer.save()
+
+        if customer_id:
+            # Create a new entry in the Customer_User table and associate it with the created user
+            Customer_User.objects.create(user=user, customer_id=customer_id)
+
         user_data = serializer.data
-        user_data['role'] = serializer.instance.role
+        user_data['role'] = user.role
+        user_data['customer_id'] = customer_id
         message = "User created successfully."
         response_data = {
             'message': message,
-            'data': user_data
+            'data': user_data,
+            'customer_id': customer_id
         }
+
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
@@ -84,7 +87,6 @@ class LogoutAPIView(generics.GenericAPIView):
 class GetUsersAPIView(generics.GenericAPIView):
     queryset = User.objects.all()
     serializer_class = GetUserSerializer
-
     permission_classes = (IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
@@ -111,18 +113,21 @@ class GetUsersAPIView(generics.GenericAPIView):
                 }
                 return Response(response_data, status=404)
 
-        if username and user_status:
-            users_data = self.queryset.filter(username=username, is_active=user_status)
-        elif username:
-            users_data = self.queryset.filter(username=username)
-        elif user_status:
-            users_data = self.queryset.filter(is_active=user_status)
-        else:
-            users_data = self.get_queryset()
+        users_data = self.get_queryset()
+
+        if username:
+            users_data = users_data.filter(username=username)
+
+        if user_status:
+            users_data = users_data.filter(is_active=user_status)
+
+        if customer_id:
+            # Filter users based on the provided customer_id
+            users_data = users_data.filter(customer_user__customer_id=customer_id)
 
         serializer = self.get_serializer(users_data, many=True)
         response_data = {
-            'message': 'user details listed successfully',
+            'message': 'User details listed successfully',
             'status': 'success',
             'data': serializer.data
         }
@@ -131,21 +136,55 @@ class GetUsersAPIView(generics.GenericAPIView):
 
 class UpdateUsersAPIView(generics.GenericAPIView):
     serializer_class = UpdateUserSerializer
-
     permission_classes = (IsAuthenticated,)
 
-    def put(self, request, pk):
+    def put(self, request, id):
         try:
-            user = User.objects.get(pk=pk)
-            update_user_data = request.data
-            serializer = UpdateUserSerializer(user, data=update_user_data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            else:
-                return Response(serializer.errors, status=400)
+            user = User.objects.get(id=id)
         except User.DoesNotExist:
-            return Response({'message': 'User not found'}, status=404)
+            return Response({'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        update_user_data = request.data
+
+        # Check if customer_id is present in the update data
+        customer_id = update_user_data.get('customer_id', None)
+
+        if customer_id is not None:
+            if Customer.objects.filter(id=customer_id).exists():
+                # Retrieve the associated Customer_User objects
+                customer_users = Customer_User.objects.filter(user=user)
+
+                # Update or create a new entry in the Customer_User table for each Customer_User object
+                for customer_user in customer_users:
+                    customer_user.customer_id = customer_id
+                    customer_user.save()
+
+            else:
+                return Response({'message': "No such customer or invalid customer_id"},
+                                status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.serializer_class(user, data=update_user_data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            response = {
+                "message": "User updated successfully",
+                "data": {
+                    "id": user.id,
+                    "customer_id": customer_id,
+                    "username": user.username,
+                    "name": user.name,
+                    "email": user.email,
+                    "phone": user.phone,
+                    "profile_image": user.profile_image,
+                    "role": user.role,
+                    "trizlabz_user": user.trizlabz_user,
+                    "tenet_id": user.tenet_id,
+                    "cloud_username": user.cloud_username,
+                },
+            }
+            return Response(response, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DeleteUsersAPIView(generics.GenericAPIView):
@@ -153,9 +192,9 @@ class DeleteUsersAPIView(generics.GenericAPIView):
 
     permission_classes = (IsAuthenticated,)
 
-    def delete(self, request, pk):
+    def delete(self, request, id):
         try:
-            user = User.objects.get(pk=pk)
+            user = User.objects.get(id=id)
             user.is_active = False
             user.save()
             return Response({'message': 'User deleted successfully'})
@@ -353,6 +392,7 @@ class DeleteCustomerAPIView(generics.DestroyAPIView):
         customer.save()
         return Response({'message': 'customer deleted successfully.'}, status=200)
 
+
 # Attachment or Sensor
 class Attachment_Sensor(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
@@ -532,6 +572,7 @@ class DeleteAttachment_SensorAPIView(generics.GenericAPIView):
         attachment_or_sensor.save()
         return Response({'message': 'Attachment or sensor deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
 
+
 # Variant Management Apis
 class AddVariantCreateView(generics.CreateAPIView):
     permission_classes = (IsAuthenticated,)
@@ -651,6 +692,7 @@ class GetVariantAPIView(generics.RetrieveAPIView):
 
         return Response(response_data, status=status.HTTP_200_OK)
 
+
 class UpdateVariantAPIView(generics.UpdateAPIView):
     permission_classes = (IsAuthenticated,)
 
@@ -735,35 +777,46 @@ class DeleteVariantAPIView(generics.DestroyAPIView):
 
 
 # Map Management
+
 class AddMapCreateView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
 
-    def post(self, request, ):
+
+    def post(self, request, *args, **kwargs):
         customer_id = request.data.get('customer_id')
         map_name = request.data.get('map_name')
+        path_layout = request.data.get('path_layout')
+        map_description = request.data.get('map_description')
+        map_layout = request.data.get('map_layout')
+
         # Check if the map_name already exists
         if Map.objects.filter(map_name=map_name).exists():
             return Response({"error": "Map with this name already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check if the customer_id exists in the customer table
         try:
-            Customer.objects.get(id=customer_id)
+            customer = Customer.objects.get(id=customer_id)
         except Customer.DoesNotExist:
             return Response({"error": "Customer not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = MapSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            response = {
-                "message": "Map Added successfully",
-                "data": serializer.data
-            }
-            return Response(response, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Create the Map object
+        map_obj = Map.objects.create(map_name=map_name, map_layout=map_layout,map_description=map_description, path_layout=path_layout)
+
+        # Create the Map_Customer object and associate it with the customer
+        Map_Customer.objects.create(map=map_obj, customer=customer)
+
+        serializer = MapSerializer(map_obj)
+        response = {
+            "message": "Map Added successfully",
+            "data": serializer.data,
+            "customer_id": customer_id
+        }
+        return Response(response, status=status.HTTP_201_CREATED)
 
 
 class GetMapListAPIView(generics.ListCreateAPIView):
     permission_classes = (IsAuthenticated,)
+    serializer_class = MapSerializer
 
     def get(self, request):
         map_id = request.query_params.get("map_id")
@@ -778,7 +831,8 @@ class GetMapListAPIView(generics.ListCreateAPIView):
         if map_name:
             maps = maps.filter(map_name=map_name)
         if customer_id:
-            maps = maps.filter(customer_id=customer_id)
+            # Use the correct related field name for the customer_id filter
+            maps = maps.filter(map_customer__customer_id=customer_id)
         if map_status:
             maps = maps.filter(map_status=map_status)
 
@@ -788,14 +842,13 @@ class GetMapListAPIView(generics.ListCreateAPIView):
         serializer = MapSerializer(maps, many=True)
         response = {
             "message": "Get Map Details Successfully",
-            "data": serializer.data
+            "data": serializer.data,
+            "customer_id":customer_id
         }
         return Response(response)
 
-
 class UpdateMapAPIView(generics.UpdateAPIView):
     permission_classes = (IsAuthenticated,)
-
     queryset = Map.objects.all()
     serializer_class = MapSerializer
     lookup_field = 'id'
@@ -804,14 +857,32 @@ class UpdateMapAPIView(generics.UpdateAPIView):
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+
+        # Check if the customer_id is provided in the request data
+        customer_id = request.data.get('customer_id')
+        if customer_id is not None:
+            # Check if the provided customer_id exists in the Customer table
+            try:
+                customer = Customer.objects.get(id=customer_id)
+            except Customer.DoesNotExist:
+                return Response({"error": "Customer not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            # Update the associated Map_Customer record
+            try:
+                map_customer = Map_Customer.objects.get(map=instance)
+                map_customer.customer = customer
+                map_customer.save()
+            except Map_Customer.DoesNotExist:
+                # If the Map_Customer record doesn't exist, create a new one
+                Map_Customer.objects.create(map=instance, customer=customer)
+
         self.perform_update(serializer)
+
         response = {
             "message": "Map Details Updated Successfully",
             "data": serializer.data
-
         }
         return Response(response)
-
 
 class DeleteMapAPIView(generics.DestroyAPIView):
     permission_classes = (IsAuthenticated,)
@@ -2059,9 +2130,6 @@ class UpdateMissionAPIView(generics.GenericAPIView):
         # Save the updated mission object
         mission.save()
 
-        # Perform updates for related objects (maps, fleets, deployments, and actions)
-        # Similar to the creation logic in the 'post' method, but instead of creating new objects, update existing ones.
-
         # Loop through the maps data and update related objects
         for map_item in map_data:
             map_id = map_item.get('id')
@@ -2167,14 +2235,16 @@ class GetMissionAPIView(generics.GenericAPIView):
             mission_queryset = Mission_Fleet_Map_Deployment_Action.objects.select_related(
                 'mission', 'deployment', 'map', 'fleet', 'action'
             )
+
             if mission_id:
                 mission_instance = mission_queryset.filter(id=mission_id).first()
             elif mission_name:
                 mission_instance = mission_queryset.filter(name=mission_name).first()
             elif mission_status:
-                mission_instance = mission_queryset.filter(
-                    Q(mission__status=mission_status)
-                ).first()
+                mission_queryset = mission_queryset.filter(
+                    mission__status=mission_status
+                )
+                mission_instance = mission_queryset.first()
 
             if mission_instance is None:
                 return Response({"message": "Mission not found."},
