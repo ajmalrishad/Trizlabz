@@ -1,4 +1,5 @@
 from django.contrib import auth
+from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
@@ -11,34 +12,62 @@ class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
         fields = '__all__'
+class PrivilegeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Privilege
+        fields = ('administration', 'customer_management', 'setup')
+
+
+class RoleSerializer(serializers.ModelSerializer):
+    privileges = PrivilegeSerializer(many=True)
+
+    class Meta:
+        model = Role
+        fields = ('role_name', 'trizlabz_role', 'privileges')
+
+    def create(self, validated_data):
+        privileges_data = validated_data.pop('privileges')
+        role = Role.objects.create(**validated_data)
+
+        for privilege_data in privileges_data:
+            Privilege.objects.create(role=role, **privilege_data)
+
+        return role
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(max_length=68, min_length=6, write_only=True)
-    cloud_password = serializers.CharField(max_length=100, min_length=6, write_only=True)
-    customer_id = serializers.CharField(required=False)  # Optional field for customer ID
-
     class Meta:
         model = User
-        fields = ['id', 'customer_id', 'name', 'username', 'email', 'phone', 'password', 'role', 'trizlabz_user',
-                  'tenet_id', 'cloud_username', 'cloud_password']
-
-    def validate(self, attrs):
-        username = attrs.get('username', '')
-        if not username.isalnum():
-            raise serializers.ValidationError("Username should contain only alphanumeric characters.")
-        return attrs
+        fields = '__all__'
+        extra_kwargs = {
+            'password': {'write_only': True},  # Exclude password from response
+            'last_login': {'write_only': True},  # Exclude last_login from response
+            'is_superuser': {'write_only': True},  # Exclude is_superuser from response
+            'is_staff': {'write_only': True},  # Exclude is_staff from response
+            'is_active': {'write_only': True},  # Exclude is_active from response
+            'date_joined': {'write_only': True},  # Exclude date_joined from response
+            'groups': {'write_only': True},  # Exclude groups from response
+            'user_permissions': {'write_only': True},  # Exclude user_permissions from response
+        }
 
     def create(self, validated_data):
-        customer_id = validated_data.pop('customer_id', None)
-        user = User.objects.create_user(**validated_data)
+        # Hash the password securely before saving
+        password = validated_data.pop('password')  # Remove password from validated_data
+        hashed_password = make_password(password)
+
+        # Check if 'customer_id' is present in the request data
+        customer_id = self.context['request'].data.get('customer_id')
         if customer_id:
-            customer = customer_id
-            user.customer = customer
-            user.save()
+            validated_data['customer_id'] = customer_id
+
+        user = User.objects.create(password=hashed_password, **validated_data)
         return user
 
-
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['customer_id'] = representation.pop('customer', None)
+        representation['role_id'] = representation.pop('role', None)
+        return representation
 class LoginSerializer(serializers.ModelSerializer):
     password = serializers.CharField(max_length=68, min_length=6, write_only=True)
     username = serializers.CharField(max_length=255, min_length=3)
@@ -114,27 +143,6 @@ class DeleteUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'user_id', 'email']
 
 
-class PrivilegeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Privilege
-        fields = ('administration', 'customer_management', 'setup')
-
-
-class RoleSerializer(serializers.ModelSerializer):
-    privileges = PrivilegeSerializer(many=True)
-
-    class Meta:
-        model = Role
-        fields = ('role_name', 'trizlabz_role', 'privileges')
-
-    def create(self, validated_data):
-        privileges_data = validated_data.pop('privileges')
-        role = Role.objects.create(**validated_data)
-
-        for privilege_data in privileges_data:
-            Privilege.objects.create(role=role, **privilege_data)
-
-        return role
 
 
 class Attachment_SensorSerializer(serializers.ModelSerializer):
@@ -218,17 +226,6 @@ class FleetSerializer(serializers.ModelSerializer):
         model = Fleet
         fields = '__all__'
 
-
-# class CustomerCustomSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Customer
-#         fields = ['customer_name']
-#
-#
-# class CustomDeploymentSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Deployment
-#         fields = ['deployment_name']
 
 
 class GroupSerializer(serializers.ModelSerializer):

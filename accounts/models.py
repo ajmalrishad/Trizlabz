@@ -25,16 +25,38 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.customer_name
+    class Meta:
+        db_table = 'Customer'
+
+
+class Role(models.Model):
+    role_name = models.CharField(max_length=100, unique=True)
+    trizlabz_role = models.BooleanField(default=False)
+    role_status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
+
+    def __str__(self):
+        return self.role_name
+    class Meta:
+        db_table = 'Role'
+
+
+class Privilege(models.Model):
+    role = models.ForeignKey(Role, related_name='privileges', on_delete=models.CASCADE)
+    administration = models.BooleanField(default=False)
+    customer_management = models.BooleanField(default=False)
+    setup = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+    updated_at = models.DateTimeField(auto_now=True, null=False)
+    def __str__(self):
+        return self.role
+    class Meta:
+        db_table = 'Privilege'
+
 
 
 class User(AbstractUser):
-    class Role(models.TextChoices):
-        OPERATOR = "Operator"
-        ADMINISTRATOR = "Administrator"
-        SUPERVISOR = "Supervisor"
-        SUPERADMIN = "Superadmin"
-
-    # base_role = Role.OPERATOR
     first_name = None
     last_name = None
     username = models.CharField(max_length=200, null=False, unique=True)
@@ -42,7 +64,8 @@ class User(AbstractUser):
     email = models.EmailField(max_length=255, unique=True)
     phone = models.CharField(max_length=20, unique=True)
     profile_image = models.URLField(max_length=500, null=True)
-    role = models.CharField(max_length=50, choices=Role.choices)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
     trizlabz_user = models.BooleanField(default=True)
     tenet_id = models.CharField(max_length=200, null=True)
     cloud_username = models.CharField(max_length=200, null=True)
@@ -57,6 +80,9 @@ class User(AbstractUser):
             'access': str(refresh.access_token)
         }
 
+    class Meta:
+        db_table = 'User'
+
 
 class Customer_User(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
@@ -65,24 +91,10 @@ class Customer_User(models.Model):
     def __str__(self):
         return self.user.name
 
+    class Meta:
+        db_table = 'Customer_User'
 
-class Role(models.Model):
-    role_name = models.CharField(max_length=100, unique=True)
-    trizlabz_role = models.BooleanField(default=False)
-    role_status = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True, null=False)
-    updated_at = models.DateTimeField(auto_now=True, null=False)
-
-
-class Privilege(models.Model):
-    role = models.ForeignKey(Role, related_name='privileges', on_delete=models.CASCADE)
-    administration = models.BooleanField(default=False)
-    customer_management = models.BooleanField(default=False)
-    setup = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True, null=False)
-    updated_at = models.DateTimeField(auto_now=True, null=False)
-
-
+# Variant_orAttachment Management
 class Variant(models.Model):
     variant_id = models.AutoField(primary_key=True)
     variant_name = models.CharField(max_length=255, unique=True)
@@ -93,6 +105,9 @@ class Variant(models.Model):
 
     def __str__(self):
         return self.variant_name
+    class Meta:
+        db_table = 'Variant'
+
 
 
 class Attachment_or_Sensor_Master(models.Model):
@@ -106,6 +121,8 @@ class Attachment_or_Sensor_Master(models.Model):
 
     def __str__(self):
         return self.name
+    class Meta:
+        db_table = 'Attachment_or_Sensor_Master'
 
 
 class Variant_or_Attachment_or_Sensor(models.Model):
@@ -116,6 +133,8 @@ class Variant_or_Attachment_or_Sensor(models.Model):
 
     def __str__(self):
         return self.variant
+    class Meta:
+        db_table = 'Variant_or_Attachment_or_Sensor'
 
 
 # Map Management
@@ -131,6 +150,10 @@ class Map(models.Model):
     def __str__(self):
         return self.map_name
 
+    class Meta:
+        db_table = 'Map'
+
+
 
 class Map_Customer(models.Model):
     map = models.ForeignKey(Map, on_delete=models.CASCADE)
@@ -138,6 +161,8 @@ class Map_Customer(models.Model):
 
     def __str__(self):
         return self.map.name
+    class Meta:
+        db_table = 'Map_Customer'
 
 
 # Deployment Management
@@ -150,6 +175,9 @@ class Deployment(models.Model):
     def __str__(self):
         return self.deployment_name
 
+    class Meta:
+        db_table = 'Deployment'
+
 
 class Deployment_Maps(models.Model):
     map = models.ForeignKey(Map, on_delete=models.CASCADE)
@@ -159,8 +187,10 @@ class Deployment_Maps(models.Model):
 
     def __str__(self):
         return self.deployment
+    class Meta:
+        db_table = 'Deployment_Maps'
 
-
+#Vehicle Management
 class Vehicle(models.Model):
     vehicle_label = models.CharField(max_length=100, unique=True)
     endpoint_id = models.CharField(max_length=100)
@@ -173,6 +203,8 @@ class Vehicle(models.Model):
 
     def __str__(self):
         return self.vehicle_label
+    class Meta:
+        db_table ='Vehicle'
 
 
 class Vehicle_Attachments(models.Model):
@@ -181,6 +213,9 @@ class Vehicle_Attachments(models.Model):
 
     def __str__(self):
         return self.vehicle
+
+    class Meta:
+        db_table ='Vehicle_Attachments'
 
 
 # Fleet Management
@@ -193,6 +228,9 @@ class Fleet(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        db_table = 'Fleet'
+
 
 class Fleet_Vehicle_Deployment(models.Model):
     fleet = models.ForeignKey(Fleet, on_delete=models.CASCADE)
@@ -201,6 +239,8 @@ class Fleet_Vehicle_Deployment(models.Model):
 
     def __str__(self):
         return self.fleet.name
+    class Meta:
+        db_table = 'Fleet_Vehicle_Deployment'
 
 
 # User Group Management
@@ -212,6 +252,8 @@ class UserGroup(models.Model):
 
     def __str__(self):
         return self.name
+    class Meta:
+        db_table = 'UserGroup'
 
 
 class Group_Deployment_Vehicle_Fleet_Customer(models.Model):
@@ -223,6 +265,8 @@ class Group_Deployment_Vehicle_Fleet_Customer(models.Model):
 
     def __str__(self):
         return self.group.name
+    class Meta:
+        db_table = 'Group_Deployment_Vehicle_Fleet_Customer'
 
 
 # Mission Management
@@ -234,6 +278,8 @@ class Action(models.Model):
 
     def __str__(self):
         return self.name
+    class Meta:
+        db_table = 'Action'
 
 
 # Mission Management
@@ -245,6 +291,8 @@ class Mission(models.Model):
 
     def __str__(self):
         return self.name
+    class Meta:
+        db_table = 'Mission'
 
 
 class Mission_Fleet_Map_Deployment_Action(models.Model):
@@ -256,3 +304,6 @@ class Mission_Fleet_Map_Deployment_Action(models.Model):
 
     def __str__(self):
         return self.mission.name
+
+    class Meta:
+        db_table = 'Mission_Fleet_Map_Deployment_Action'

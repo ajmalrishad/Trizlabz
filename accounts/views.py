@@ -19,33 +19,54 @@ from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer,
 
 # User Management
 class RegisterView(generics.GenericAPIView):
+    queryset = User.objects.all()
     serializer_class = RegisterSerializer
 
-    @transaction.atomic
-    def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    def post(self, request, *args, **kwargs):
+        customer_id = request.data.get('customer_id')
+        role_id = request.data.get('role_id')
 
-        customer_id = serializer.validated_data.get('customer_id', None)
+        customer = None
+        if customer_id:
+            try:
+                customer = Customer.objects.get(id=customer_id)
+            except Customer.DoesNotExist:
+                return Response({"error": "Customer does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+
+        role = None
+        if role_id:
+            try:
+                role = Role.objects.get(id=role_id)
+            except Role.DoesNotExist:
+                return Response({"error": "Role does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
         user = serializer.save()
 
-        if customer_id:
-            # Create a new entry in the Customer_User table and associate it with the created user
-            Customer_User.objects.create(user=user, customer_id=customer_id)
+        if customer:
+            customer_user = Customer_User.objects.create(user=user, customer=customer)
 
-        user_data = serializer.data
-        user_data['role'] = user.role
-        user_data['customer_id'] = customer_id
-        message = "User created successfully."
-        response_data = {
-            'message': message,
-            'data': user_data,
-            'customer_id': customer_id
+        if role:
+            user.role = role
+            user.save()
+
+        response_data = serializer.data.copy()
+
+        # If no customer_id and role_id were provided, set them to None
+        if not customer_id:
+            response_data['customer_id'] = None
+        if not role_id:
+            response_data['role_id'] = None
+
+        response = {
+            "message": "User Added successfully",
+            "status": "success",
+            "data": response_data
         }
 
-        return Response(response_data, status=status.HTTP_201_CREATED)
-
+        return Response(response, status=status.HTTP_201_CREATED)
 
 # login user
 class LoginAPIView(generics.GenericAPIView):
