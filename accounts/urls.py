@@ -61,7 +61,7 @@ urlpatterns = [
     path('api/setup/map-management/delete-map/<int:id>', DeleteMapAPIView.as_view(), name='delete'),
     # Deployment Management
     path('api/setup/deployment-management/add-deployment', AddDeploymentCreateView.as_view(), name='adddeployment'),
-    path('api/setup/deployment-management/update-deployment/<int:id>', UpdateDeploymentView.as_view(),
+    path('api/setup/deployment-management/update-deployment/<int:pk>', UpdateDeploymentView.as_view(),
          name='update-deployment'),
     path('api/setup/deployment-management/get-deployment', GetDeploymentAPIView.as_view(), name='get-deployment'),
     path('api/setup/deployment-management/delete-deployment/<int:id>', DeleteDeploymentAPIView.as_view(),

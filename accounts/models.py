@@ -33,6 +33,7 @@ class Role(models.Model):
     role_name = models.CharField(max_length=100, unique=True)
     trizlabz_role = models.BooleanField(default=False)
     role_status = models.BooleanField(default=True)
+    created_by = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
 
@@ -54,8 +55,19 @@ class Privilege(models.Model):
     class Meta:
         db_table = 'Privilege'
 
+# User Group Management
+class UserGroup(models.Model):
+    name = models.CharField(max_length=255, unique=True, blank=False)
+    status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
+    def __str__(self):
+        return self.name
+    class Meta:
+        db_table = 'UserGroup'
 
+#User Management
 class User(AbstractUser):
     first_name = None
     last_name = None
@@ -64,9 +76,9 @@ class User(AbstractUser):
     email = models.EmailField(max_length=255, unique=True)
     phone = models.CharField(max_length=20, unique=True)
     profile_image = models.URLField(max_length=500, null=True)
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True)
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
-    trizlabz_user = models.BooleanField(default=True)
+    trizlabz_user = models.BooleanField(default=False)
+    user_type = models.IntegerField(choices=((1, 'SuperUser'), (2, 'Trizlabz_User'), (3, 'Customer_User')),null=True)
     tenet_id = models.CharField(max_length=200, null=True)
     cloud_username = models.CharField(max_length=200, null=True)
     cloud_password = models.CharField(max_length=200, null=True)
@@ -87,6 +99,7 @@ class User(AbstractUser):
 class Customer_User(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user_group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         return self.user.name
@@ -100,6 +113,7 @@ class Variant(models.Model):
     variant_name = models.CharField(max_length=255, unique=True)
     variant_description = models.TextField()
     variant_status = models.BooleanField(default=True)
+    created_by = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
 
@@ -116,6 +130,7 @@ class Attachment_or_Sensor_Master(models.Model):
     description = models.TextField()
     status = models.BooleanField(default=True)
     attachment_or_sensor = models.IntegerField(choices=((1, 'Attachment'), (2, 'Sensor')))
+    created_by = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
 
@@ -141,9 +156,11 @@ class Variant_or_Attachment_or_Sensor(models.Model):
 class Map(models.Model):
     map_name = models.CharField(max_length=255, unique=True)
     map_description = models.CharField(max_length=255, null=True)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     map_layout = models.URLField()
     path_layout = models.JSONField()
     map_status = models.BooleanField(default=True)
+    created_by = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
 
@@ -154,21 +171,12 @@ class Map(models.Model):
         db_table = 'Map'
 
 
-
-class Map_Customer(models.Model):
-    map = models.ForeignKey(Map, on_delete=models.CASCADE)
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return self.map.name
-    class Meta:
-        db_table = 'Map_Customer'
-
-
 # Deployment Management
 class Deployment(models.Model):
     deployment_name = models.CharField(max_length=255, unique=True)
     deployment_status = models.BooleanField(default=True)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    created_by = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
 
@@ -196,8 +204,10 @@ class Vehicle(models.Model):
     endpoint_id = models.CharField(max_length=100)
     application_id = models.CharField(max_length=100)
     vehicle_variant = models.CharField(max_length=100)
-    customer_id = models.CharField(max_length=100)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True)
     vehicle_status = models.BooleanField(default=True)
+    created_by = models.IntegerField(null=True)
+    updated_by = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
 
@@ -221,7 +231,9 @@ class Vehicle_Attachments(models.Model):
 # Fleet Management
 class Fleet(models.Model):
     name = models.CharField(max_length=255, unique=True, blank=False)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True)
     status = models.BooleanField(default=True)
+    created_by = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -242,20 +254,6 @@ class Fleet_Vehicle_Deployment(models.Model):
     class Meta:
         db_table = 'Fleet_Vehicle_Deployment'
 
-
-# User Group Management
-class UserGroup(models.Model):
-    name = models.CharField(max_length=255, unique=True, blank=False)
-    status = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.name
-    class Meta:
-        db_table = 'UserGroup'
-
-
 class Group_Deployment_Vehicle_Fleet_Customer(models.Model):
     group = models.ForeignKey(UserGroup, on_delete=models.CASCADE)
     deployment = models.ForeignKey(Deployment, on_delete=models.CASCADE)
@@ -269,10 +267,11 @@ class Group_Deployment_Vehicle_Fleet_Customer(models.Model):
         db_table = 'Group_Deployment_Vehicle_Fleet_Customer'
 
 
-# Mission Management
+# Action Management
 class Action(models.Model):
     name = models.CharField(max_length=255, blank=False, unique=True)
     status = models.BooleanField(default=True)
+    created_by = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -286,6 +285,7 @@ class Action(models.Model):
 class Mission(models.Model):
     name = models.CharField(max_length=255, blank=False, unique=True)
     status = models.BooleanField(default=True)
+    created_by = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -307,3 +307,4 @@ class Mission_Fleet_Map_Deployment_Action(models.Model):
 
     class Meta:
         db_table = 'Mission_Fleet_Map_Deployment_Action'
+
