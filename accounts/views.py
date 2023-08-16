@@ -28,7 +28,7 @@ class RegisterView(generics.GenericAPIView):
 
         customer_id = request.data.get('customer_id')
         role_id = request.data.get('role_id')
-        group_name = request.data.get('user_group',None)
+        group_name = request.data.get('user_group', None)
 
         try:
             customer = Customer.objects.get(id=customer_id, customer_status=1)
@@ -263,7 +263,7 @@ class CreateRoleView(generics.GenericAPIView):
             if Role.objects.filter(role_name=role_name).exists():
                 return Response({'message': 'Role with the same name already exists.'}, status=400)
 
-            trizlabz_role = request.data.get('trizlabz_role','false')
+            trizlabz_role = request.data.get('trizlabz_role', 'false')
             privileges_data = request.data.get('privileges',
                                                [])  # Get privileges data from the request, default to an empty list
             role = serializer.save()
@@ -280,6 +280,7 @@ class CreateRoleView(generics.GenericAPIView):
             }
             return Response(response_data, status=201)
         return Response(serializer.errors, status=400)
+
 
 class RoleUpdateView(generics.UpdateAPIView):
     queryset = Role.objects.all()
@@ -730,8 +731,12 @@ class AddVariantCreateView(generics.CreateAPIView):
                     {"error": "Sensor with the id not exists."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-        return Response(variant_serializer.data, status=status.HTTP_201_CREATED)
+        response = {
+            "message": "Variant Added successfully",
+            "status": "success",
+            "data": variant_serializer.data,
+        }
+        return Response(response, status=status.HTTP_201_CREATED)
 
 
 class GetVariantAPIView(generics.RetrieveAPIView):
@@ -741,9 +746,9 @@ class GetVariantAPIView(generics.RetrieveAPIView):
 
     def get(self, request, *args, **kwargs):
         # Get the query parameters
-        variant_id = request.query_params.get('id')
-        variant_status = request.query_params.get('status')
-        variant_name = request.query_params.get('name')
+        variant_id = request.query_params.get('variant_id')
+        variant_status = request.query_params.get('variant_status')
+        variant_name = request.query_params.get('variant_name')
 
         # Filter the queryset based on the provided parameters
         queryset = self.get_queryset()
@@ -781,16 +786,20 @@ class GetVariantAPIView(generics.RetrieveAPIView):
                     'sensor_name': sensor.name
                 })
 
-            variant_data = {
-                'variant_id': variant.pk,
-                'variant_name': variant.variant_name,
-                'variant_description': variant.variant_description,
-                'variant_status': variant.variant_status,
-                'attachment_option': attachment_data,
-                'sensor_option': sensor_data
+            response_data = {
+                "message": " variant listed successfully",
+                "status": "success",
+                "data": {
+                    'variant_id': variant.pk,
+                    'variant_name': variant.variant_name,
+                    'variant_description': variant.variant_description,
+                    'variant_status': variant.variant_status,
+                    'attachment_option': attachment_data,
+                    'sensor_option': sensor_data
+                }
             }
 
-            response_data.append(variant_data)
+            # response_data.append(variant_data)
 
         return Response(response_data, status=status.HTTP_200_OK)
 
@@ -824,12 +833,14 @@ class UpdateVariantAPIView(generics.UpdateAPIView):
 
         attachment_option = variant_data.get('attachment_option', [])
         sensor_option = variant_data.get('sensor_option', [])
-
+        attachment_data =[]
         with transaction.atomic():
             # Update attachment options
             for attachment in attachment_option:
                 attachment_id = attachment.get('attachment_id')
                 attachment_name = attachment.get('attachment_name')
+                attachment_data.append(attachment_id)
+                attachment_data.append(attachment_name)
                 try:
                     variant_attachment = Variant_or_Attachment_or_Sensor.objects.get(
                         variant=variant, attachment_or_sensor_id=attachment_id
@@ -844,9 +855,12 @@ class UpdateVariantAPIView(generics.UpdateAPIView):
                     )
 
             # Update sensor options
+            sensor_data = []
             for sensor in sensor_option:
                 sensor_id = sensor.get('sensor_id')
                 sensor_name = sensor.get('sensor_name')
+                sensor_data.append(sensor_id)
+                sensor_data.append(sensor_name)
                 try:
                     variant_sensor = Variant_or_Attachment_or_Sensor.objects.get(
                         variant=variant, attachment_or_sensor_id=sensor_id
@@ -859,8 +873,19 @@ class UpdateVariantAPIView(generics.UpdateAPIView):
                         attachment_or_sensor_id=sensor_id,
                         name=sensor_name
                     )
-
-        return Response(self.get_serializer(instance=variant).data, status=status.HTTP_200_OK)
+        response = {
+            "message": "Variant Updated Successfully",
+            "status": "Success",
+            "data": {
+                    'variant_id': variant.pk,
+                    'variant_name': variant.variant_name,
+                    'variant_description': variant.variant_description,
+                    'variant_status': variant.variant_status,
+                    'attachment_option': attachment_data,
+                    'sensor_option': sensor_data
+                }
+            }
+        return Response(response, status=status.HTTP_200_OK)
 
 
 class DeleteVariantAPIView(generics.DestroyAPIView):
@@ -911,6 +936,7 @@ class AddMapCreateView(generics.GenericAPIView):
             "data": serializer.data,
         }
         return Response(response, status=status.HTTP_201_CREATED)
+
 
 class GetMapListAPIView(generics.ListCreateAPIView):
     permission_classes = (IsAuthenticated,)
