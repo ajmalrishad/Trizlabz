@@ -148,10 +148,14 @@ class GetUsersAPIView(generics.GenericAPIView):
                 }
                 return Response(response_data, status=404)
 
-        users_data = self.get_queryset()
+        # users_data = self.get_queryset()
+        users_data=Customer_User.objects.all()
 
         if username:
+
             users_data = users_data.filter(username=username)
+            # users_data = users_data.filter(customer=customer_id)
+
 
         if user_status:
             users_data = users_data.filter(is_active=user_status)
@@ -1028,7 +1032,8 @@ class AddDeploymentCreateView(generics.CreateAPIView):
     serializer_class = DeploymentSerializer
 
     def validate_map_data(self, map_data):
-        map_id = map_data.get('list_of_maps_attached')
+        map = map_data.get('list_of_maps_attached')
+
 
         if not map_id or not isinstance(map_id, int):
             raise DRFValidationError("Invalid 'map_id'. It should be an integer.")
@@ -1042,6 +1047,7 @@ class AddDeploymentCreateView(generics.CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         deployment_data = request.data
+        print('==========',deployment_data)
         deployment_name = deployment_data.get('deployment_name')
         list_of_maps_attached_data = deployment_data.get('list_of_maps_attached', [])
         customer_id = deployment_data.get('customer_id')
