@@ -89,7 +89,8 @@ class LoginAPIView(generics.GenericAPIView):
             'message': message,
             'data': {
                 'username': user.username,
-                'role': user.role,
+                # 'role': user.role,
+                'role': user.role.id,
                 'trizlabz_user': user.trizlabz_user,
                 'cloud_username': user.cloud_username,
                 'token': user.tokens(),
@@ -148,11 +149,10 @@ class GetUsersAPIView(generics.GenericAPIView):
                 }
                 return Response(response_data, status=404)
 
-        # users_data = self.get_queryset()
-        users_data=Customer_User.objects.all()
+        users_data = self.get_queryset()
+        # users_data=Customer_User.objects.all()
 
         if username:
-
             users_data = users_data.filter(username=username)
             # users_data = users_data.filter(customer=customer_id)
 
@@ -2430,6 +2430,7 @@ class DeleteMissionAPIView(generics.GenericAPIView):
         mission.save()
         return Response({'message': 'Mission  deleted successfully.'}, status=200)
 
+from django.db.models import Q
 
 # Dashboard Management
 class DashBoardAPIView(generics.GenericAPIView):
@@ -2438,16 +2439,21 @@ class DashBoardAPIView(generics.GenericAPIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         uid = user.id
+        user_role=user.role
+        print("___________________________",user_role)
 
-        if user.is_authenticated:
+
+        if user.is_authenticated:   # True
 
             customer_count = Customer.objects.count()
 
-            user_count = User.objects.count()
+            user_count = User.objects.exclude(is_superuser=1).count()
 
-            fleet_count = Fleet_Vehicle_Deployment.objects.count()
+            # fleet_count = Fleet_Vehicle_Deployment.objects.count()
+            fleet_count = Fleet.objects.count()
 
-            deployment_count = Deployment_Maps.objects.count()
+            # deployment_count = Deployment_Maps.objects.count()
+            deployment_count = Deployment.objects.count()
 
             vehicle_count = Vehicle.objects.count()
 
@@ -2463,14 +2469,17 @@ class DashBoardAPIView(generics.GenericAPIView):
                     "group_count": group_count,
                 }
                 return Response(total_count_data, status=200)
+
             else:
-                customer_count = Customer.objects.count()
+                userlog = Customer_User.objects.filter(Q(customer=uid) | Q(user=uid))
 
-                user_count = User.objects.count()
+                customer_count = Customer_User.objects.filter(user=uid).count()
 
-                fleet_count = Fleet_Vehicle_Deployment.objects.filter(customer=uid).count()
+                user_count = Customer_User.objects.filter(user=uid).count()
 
-                deployment_count = Deployment_Maps.objects.filter(customer=uid).count()
+                fleet_count = Fleet.objects.filter(customer=uid).count()
+
+                deployment_count = Deployment.objects.filter(customer=uid).count()
 
                 vehicle_count = Vehicle.objects.filter(customer=uid).count()
 

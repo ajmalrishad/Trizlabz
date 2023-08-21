@@ -152,6 +152,7 @@ class LoginSerializer(serializers.ModelSerializer):
 
     def get_role(self, obj):
         return obj.role
+        # return user.obj.role
 
     class Meta:
         model = User

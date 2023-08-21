@@ -78,7 +78,6 @@ class User(AbstractUser):
     profile_image = models.URLField(max_length=500, null=True)
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
     trizlabz_user = models.BooleanField(default=False)
-    user_type = models.IntegerField(choices=((1, 'SuperUser'), (2, 'Trizlabz_User'), (3, 'Customer_User')),null=True)
     tenet_id = models.CharField(max_length=200, null=True)
     cloud_username = models.CharField(max_length=200, null=True)
     cloud_password = models.CharField(max_length=200, null=True)
