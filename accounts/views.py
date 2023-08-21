@@ -98,7 +98,7 @@ class LoginAPIView(generics.GenericAPIView):
             'data': {
                 'username': user.username,
                 # 'role': user.role,
-                'role': user.role.id,
+                'role': user.role_id,
                 'trizlabz_user': user.trizlabz_user,
                 'cloud_username': user.cloud_username,
                 'token': user.tokens(),
@@ -1241,11 +1241,15 @@ class GetDeploymentAPIView(generics.ListAPIView):
         return serialized_maps
 
     def get_customer_ids(self, deployment_id):
-        customer_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list('customer_id', flat=True)
+        # customer_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list('customer_id', flat=True)
+        customer_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list( flat=True)
+
         return list(customer_ids)
 
     def get_user_ids(self, deployment_id):
-        user_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list('user_id', flat=True)
+        # user_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list('user_id', flat=True)
+        user_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list( flat=True)
+
         return list(user_ids)
 
 
@@ -1533,10 +1537,11 @@ class AddFleetAPIView(generics.CreateAPIView):
             return Response({"fleet_name": "Fleet name cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check if fleet with the same name exists
-        fleet = Fleet.objects.filter(name=fleet_name).first()
-        return Response({"fleet_name": "Fleet name already exsist."}, status=status.HTTP_208_ALREADY_REPORTED)
+        # fleet = Fleet.objects.filter(name=fleet_name).first()
+        if Fleet.objects.filter(name=fleet_name):
+            return Response({"fleet_name": "Fleet name already exsist."}, status=status.HTTP_208_ALREADY_REPORTED)
 
-        if fleet:
+        if Fleet.objects.filter(name=fleet_name):
             # If fleet exists, update it
             fleet.name = fleet_name  # You can assign other fields as well
         else:
@@ -1586,10 +1591,9 @@ class UpdateFleetAPIView(generics.UpdateAPIView):
         deployment_id = fleet_data.get('deployment_id')
         vehicles_data = fleet_data.get('vehicles', [])
         customer_id = fleet_data.get('customer_id')
-        user_id = fleet_data.get('user_id')
 
         try:
-            fleet = Fleet.objects.get(name=fleet_name)
+            fleet = Fleet.objects.get(name=fleet_name).exsist()
             fleet_serializer = self.get_serializer(fleet, data=fleet_data)
         except Fleet.DoesNotExist:
             return Response({"fleet_name": f"Fleet with name {fleet_name} does not exist."},
@@ -1641,7 +1645,6 @@ class UpdateFleetAPIView(generics.UpdateAPIView):
             "fleet_data": fleet_response_data,
             "attached_vehicles": response_attached_vehicles,
             "customer_id": customer_id,
-            "user_id": user_id,
         }
         return Response(response_data, status=status.HTTP_200_OK)
 
