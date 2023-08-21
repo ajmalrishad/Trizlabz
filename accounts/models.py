@@ -83,6 +83,8 @@ class User(AbstractUser):
     cloud_password = models.CharField(max_length=200, null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
+    user_group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, null=True)
+
 
     def tokens(self):
         refresh = RefreshToken.for_user(self)
@@ -98,7 +100,6 @@ class User(AbstractUser):
 class Customer_User(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    user_group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         return self.user.name

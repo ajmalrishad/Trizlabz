@@ -28,7 +28,7 @@ class RegisterView(generics.GenericAPIView):
 
         customer_id = request.data.get('customer_id')
         role_id = request.data.get('role_id')
-        group_name = request.data.get('user_group', None)
+        group_id = request.data.get('user_group', None)
 
         try:
             customer = Customer.objects.get(id=customer_id, customer_status=1)
@@ -46,25 +46,32 @@ class RegisterView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # Check if group name exists in request data, otherwise set it to None
+        if 'user_group' in request.data:
+            group_id = request.data['user_group']
+        else:
+            group_id = None
+
+        # Save the user after all validations
         user = serializer.save()
 
-        Customer_User.objects.create(user=user, customer=customer, user_group=group_name)
+        Customer_User.objects.create(user=user, customer=customer)
 
         if role:
             user.role = role
             user.save()
 
-        # Associate user with existing user group based on group name
-        try:
-            user_group = UserGroup.objects.get(name=group_name)
-        except UserGroup.DoesNotExist:
-            return Response({"error": f"Invalid group name: {group_name}"}, status=status.HTTP_400_BAD_REQUEST)
-
-        user.groups.set([user_group.id])  # Set the user's group
+        # Validate group name
+        if group_id:
+            try:
+                user_group = UserGroup.objects.get(id=group_id)
+            except UserGroup.DoesNotExist:
+                return Response({"error": f"Invalid group name: {group_id}"}, status=status.HTTP_400_BAD_REQUEST)
+            user.groups.set([user_group.id])  # Set the user's group
 
         response_data = serializer.data.copy()
         response_data['customer_id'] = customer.id
-        response_data['user_group'] = {'name': user_group.name}
+        response_data['user_group'] = {'id': group_id}
 
         response = {
             "message": "User added successfully",
@@ -73,6 +80,7 @@ class RegisterView(generics.GenericAPIView):
         }
 
         return Response(response, status=status.HTTP_201_CREATED)
+
 
 
 # login user
@@ -1499,42 +1507,45 @@ class DeleteVehicleAPIView(generics.GenericAPIView):
 # Fleet Management
 class AddFleetAPIView(generics.CreateAPIView):
     permission_classes = (IsAuthenticated,)
-    serializer_class = FleetSerializer
 
     def post(self, request, *args, **kwargs):
         fleet_data = request.data
-        fleet_name = fleet_data.get('fleet_name')
+        fleet_name = fleet_data.get('name')
         deployment_id = fleet_data.get('deployment_id')
         vehicles_data = fleet_data.get('vehicles', [])
         customer_id = fleet_data.get('customer_id')
-        user_id = fleet_data.get('user_id')
 
-        try:
-            fleet = Fleet.objects.get(name=fleet_name)
-            fleet_serializer = self.get_serializer(fleet, data=fleet_data)
-        except Fleet.DoesNotExist:
-            fleet_serializer = self.get_serializer(data=fleet_data)
-
+        # Validate deployment
         try:
             deployment = Deployment.objects.get(id=deployment_id)
         except Deployment.DoesNotExist:
-            return Response({"deployment_id": "Invalid Deployment ID."},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"deployment_id": "Invalid Deployment ID."}, status=status.HTTP_400_BAD_REQUEST)
 
-        fleet_serializer.is_valid(raise_exception=True)
-        fleet = fleet_serializer.save()
-
+        # Validate customer
         try:
             customer_instance = Customer.objects.get(id=customer_id)
         except Customer.DoesNotExist:
             return Response({"customer_id": f"Customer with ID {customer_id} does not exist."},
                             status=status.HTTP_400_BAD_REQUEST)
-        try:
-            user_instance = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response({"user_id": f"User with ID {user_id} does not exist."},
-                            status=status.HTTP_400_BAD_REQUEST)
 
+        # Ensure fleet_name is not None or empty
+        if not fleet_name:
+            return Response({"fleet_name": "Fleet name cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if fleet with the same name exists
+        fleet = Fleet.objects.filter(name=fleet_name).first()
+        return Response({"fleet_name": "Fleet name already exsist."}, status=status.HTTP_208_ALREADY_REPORTED)
+
+        if fleet:
+            # If fleet exists, update it
+            fleet.name = fleet_name  # You can assign other fields as well
+        else:
+            # If fleet doesn't exist, create a new one
+            fleet = Fleet(name=fleet_name, customer=customer_instance)  # Assign customer_id
+
+        fleet.save()  # Save the fleet
+
+        # Handle vehicles
         response_attached_vehicles = []
         for vehicle in vehicles_data:
             vehicle_id = vehicle.get('id')
@@ -1544,25 +1555,25 @@ class AddFleetAPIView(generics.CreateAPIView):
                 return Response({"vehicles": f"Vehicle with ID {vehicle_id} does not exist."},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            Fleet_Vehicle_Deployment.objects.create(fleet=fleet, vehicle=vehicle_instance, deployment=deployment,
-                                                    customer=customer_instance, user=user_instance)
+            Fleet_Vehicle_Deployment.objects.create(fleet=fleet, vehicle=vehicle_instance, deployment=deployment)
 
             response_attached_vehicles.append({
                 "vehicle_id": vehicle_instance.id,
                 "vehicle_label": vehicle_instance.vehicle_label,
             })
 
-        fleet_response_data = fleet_serializer.data
-
         response_data = {
             "message": "Fleet Added Successfully",
-            "fleet_data": fleet_response_data,
+            "status":"success",
+            "data": {
+                "fleet_name": fleet.name,
+                "customer_id": fleet.customer_id,
+                "status": fleet.status
+                },
+            # Include any other fields you want to return
             "attached_vehicles": response_attached_vehicles,
-            "customer_id": customer_id,
-            "user_id": user_id,
         }
         return Response(response_data, status=status.HTTP_201_CREATED)
-
 
 class UpdateFleetAPIView(generics.UpdateAPIView):
     permission_classes = (IsAuthenticated,)
@@ -2439,8 +2450,11 @@ class DashBoardAPIView(generics.GenericAPIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         uid = user.id
+        uname = user.username
+
+
         user_role=user.role
-        print("___________________________",user_role)
+        print("___________________________",user_role,uname)
 
 
         if user.is_authenticated:   # True
@@ -2463,8 +2477,8 @@ class DashBoardAPIView(generics.GenericAPIView):
                 total_count_data = {
                     "customer_count": customer_count,
                     "user_count": user_count,
-                    "fleet_count": fleet_count,
                     "deployment_count": deployment_count,
+                    "fleet_count": fleet_count,
                     "vehicle_count": vehicle_count,
                     "group_count": group_count,
                 }
@@ -2488,8 +2502,8 @@ class DashBoardAPIView(generics.GenericAPIView):
                 related_count_data = {
                     "customer_count": customer_count if hasattr(user, 'customer') else 0,
                     "user_count": user_count,
-                    "fleet_count": fleet_count,
                     "deployment_count": deployment_count,
+                    "fleet_count": fleet_count,
                     "vehicle_count": vehicle_count,
                     "group_count": group_count,
                 }

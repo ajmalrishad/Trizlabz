@@ -113,7 +113,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         try:
             customer = Customer.objects.get(id=customer_id, customer_status=1)  # Check for status = 1 (True)
-            Customer_User.objects.create(user=user, customer=customer)
+            # Customer_User.objects.create(user=user, customer=customer)
         except Customer.DoesNotExist:
             # Handle customer not found or status=False error
             pass
@@ -303,7 +303,6 @@ class FleetSerializer(serializers.ModelSerializer):
     vehicles = VehicleSerializer(many=True, read_only=True)
     deployment = DeploymentSerializer(many=True, read_only=True)
     customer = CustomerSerializer(many=True, read_only=True)
-    user = RegisterSerializer(many=True, read_only=True)
 
     class Meta:
         model = Fleet
