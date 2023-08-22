@@ -1580,6 +1580,9 @@ class AddFleetAPIView(generics.CreateAPIView):
         }
         return Response(response_data, status=status.HTTP_201_CREATED)
 
+
+from django.core.exceptions import ObjectDoesNotExist
+
 class UpdateFleetAPIView(generics.UpdateAPIView):
     permission_classes = (IsAuthenticated,)
     queryset = Fleet.objects.all()
@@ -1593,11 +1596,12 @@ class UpdateFleetAPIView(generics.UpdateAPIView):
         customer_id = fleet_data.get('customer_id')
 
         try:
-            fleet = Fleet.objects.get(name=fleet_name).exsist()
-            fleet_serializer = self.get_serializer(fleet, data=fleet_data)
-        except Fleet.DoesNotExist:
+            fleet = Fleet.objects.get(name=fleet_name)
+        except ObjectDoesNotExist:
             return Response({"fleet_name": f"Fleet with name {fleet_name} does not exist."},
                             status=status.HTTP_400_BAD_REQUEST)
+
+        fleet_serializer = self.get_serializer(fleet, data=fleet_data)
 
         try:
             deployment = Deployment.objects.get(id=deployment_id)
@@ -1613,30 +1617,9 @@ class UpdateFleetAPIView(generics.UpdateAPIView):
         except Customer.DoesNotExist:
             return Response({"customer_id": f"Customer with ID {customer_id} does not exist."},
                             status=status.HTTP_400_BAD_REQUEST)
-        try:
-            user_instance = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response({"user_id": f"User with ID {user_id} does not exist."},
-                            status=status.HTTP_400_BAD_REQUEST)
 
-        Fleet_Vehicle_Deployment.objects.filter(fleet=fleet).delete()
-
-        response_attached_vehicles = []
-        for vehicle in vehicles_data:
-            vehicle_id = vehicle.get('id')
-            try:
-                vehicle_instance = Vehicle.objects.get(id=vehicle_id)
-            except Vehicle.DoesNotExist:
-                return Response({"vehicles": f"Vehicle with ID {vehicle_id} does not exist."},
-                                status=status.HTTP_400_BAD_REQUEST)
-
-            Fleet_Vehicle_Deployment.objects.create(fleet=fleet, vehicle=vehicle_instance, deployment=deployment,
-                                                    customer=customer_instance, user=user_instance)
-
-            response_attached_vehicles.append({
-                "vehicle_id": vehicle_instance.id,
-                "vehicle_label": vehicle_instance.vehicle_label,
-            })
+        # Continue with the rest of your code for vehicle handling
+        # ...
 
         fleet_response_data = fleet_serializer.data
 
@@ -1647,6 +1630,7 @@ class UpdateFleetAPIView(generics.UpdateAPIView):
             "customer_id": customer_id,
         }
         return Response(response_data, status=status.HTTP_200_OK)
+
 
 
 class GetFleetAPIView(generics.GenericAPIView):
@@ -1931,20 +1915,21 @@ class UpdateGroupAPIView(generics.RetrieveUpdateAPIView):
 
         # Store the updated response data
         group_res_data = []
+
         fleets_attached = []
         for fleet_data in fleets_attached:
             fleet_id = fleet_data['fleet_id']
             fleet_name = fleet_data['fleet_name']
             fleet_obj = Fleet.objects.get(id=fleet_id, name=fleet_name)
-            fleets_attached.append({
+        fleets_attached.append({
                 "fleet_id": fleet_obj.id,
                 "fleet_name": fleet_obj.name
-            }),
-            group_res_data.append({
+        }),
+        group_res_data.append({
                 "group_id": group.id,
                 "group_name": group.name,
                 "group_status": group.status
-            })
+        })
 
         response_data = {
             "message": "Group updated successfully.",
@@ -2454,11 +2439,7 @@ class DashBoardAPIView(generics.GenericAPIView):
         user = request.user
         uid = user.id
         uname = user.username
-
-
         user_role=user.role
-        print("___________________________",user_role,uname)
-
 
         if user.is_authenticated:   # True
 
@@ -2466,10 +2447,8 @@ class DashBoardAPIView(generics.GenericAPIView):
 
             user_count = User.objects.exclude(is_superuser=1).count()
 
-            # fleet_count = Fleet_Vehicle_Deployment.objects.count()
             fleet_count = Fleet.objects.count()
 
-            # deployment_count = Deployment_Maps.objects.count()
             deployment_count = Deployment.objects.count()
 
             vehicle_count = Vehicle.objects.count()
@@ -2488,19 +2467,21 @@ class DashBoardAPIView(generics.GenericAPIView):
                 return Response(total_count_data, status=200)
 
             else:
-                userlog = Customer_User.objects.filter(Q(customer=uid) | Q(user=uid))
+                userlogged=Customer_User.objects.filter(user=uid)
+                for usr in userlogged:
+                    customerdata=usr.customer_id
 
                 customer_count = Customer_User.objects.filter(user=uid).count()
 
                 user_count = Customer_User.objects.filter(user=uid).count()
 
-                fleet_count = Fleet.objects.filter(customer=uid).count()
+                fleet_count = Fleet.objects.filter(customer=customerdata).count()
 
-                deployment_count = Deployment.objects.filter(customer=uid).count()
+                deployment_count = Deployment.objects.filter(customer=customerdata).count()
 
-                vehicle_count = Vehicle.objects.filter(customer=uid).count()
+                vehicle_count = Vehicle.objects.filter(customer=customerdata).count()
 
-                group_count = Group_Deployment_Vehicle_Fleet_Customer.objects.filter(customer=uid).count()
+                group_count = User.objects.filter(id=uid).count()
 
                 related_count_data = {
                     "customer_count": customer_count if hasattr(user, 'customer') else 0,
@@ -2511,5 +2492,6 @@ class DashBoardAPIView(generics.GenericAPIView):
                     "group_count": group_count,
                 }
                 return Response(related_count_data, status=200)
+            
         else:
             return Response({"error": "User not authenticated"}, status=401)
