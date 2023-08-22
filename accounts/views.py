@@ -1660,6 +1660,8 @@ class GetFleetAPIView(generics.ListAPIView):
         fleet_name = self.request.query_params.get('fleet_name')
         deployment_id = self.request.query_params.get('deployment_id')
         customer_id = self.request.query_params.get('customer_id')
+        fleet_status = self.request.query_params.get('fleet_status')
+        user_id = self.request.query_params.get('user_id')
 
         if fleet_name:
             queryset = queryset.filter(name=fleet_name)
@@ -1667,6 +1669,10 @@ class GetFleetAPIView(generics.ListAPIView):
             queryset = queryset.filter(fleet_vehicle_deployment__deployment_id=deployment_id)
         if customer_id:
             queryset = queryset.filter(customer_id=customer_id)
+        if fleet_status:
+            queryset = queryset.filter(status=fleet_status)
+        if user_id:
+            queryset = queryset.filter(customer__customer_user__user_id=user_id)
 
         return queryset
 
@@ -1951,21 +1957,24 @@ class GetGroupAPIView(generics.ListAPIView):
         group_name = request.query_params.get('group_name')
         group_status = request.query_params.get('group_status')
         customer_id = request.query_params.get('customer_id')
+        user_id = request.query_params.get('user_id')
 
-        if group_id is None and group_name is None and group_status is None and customer_id is None:
+        if group_id is None and group_name is None and group_status is None and customer_id is None and user_id is None:
             return Response(
-                {"message": "At least one of group_id, group_name, or group_status, customer_id must be provided."},
+                {"message": "At least one of group_id, group_name, or group_status, customer_id, user_id must be provided."},
                 status=status.HTTP_400_BAD_REQUEST)
 
         try:
             if group_id:
                 group_instance = UserGroup.objects.get(id=group_id)
-            elif group_name:
+            if group_name:
                 group_instance = UserGroup.objects.get(name=group_name)
-            elif group_status:
+            if group_status:
                 group_instance = UserGroup.objects.get(status=group_status)
-            elif customer_id:
-                group_instance = UserGroup.objects.get(id=customer_id)
+            if customer_id:
+                group_instance = UserGroup.objects.get(group_deployment_vehicle_fleet_customer__customer_id=customer_id)
+            if user_id:
+                group_instance = UserGroup.objects.get(group_deployment_vehicle_fleet_customer__customer__customer_user__user_id=user_id)
 
             group_data = Group_Deployment_Vehicle_Fleet_Customer.objects.select_related(
                 'group', 'deployment', 'vehicle', 'fleet', 'customer'
