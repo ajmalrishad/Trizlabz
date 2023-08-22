@@ -9,7 +9,19 @@ from .models import User, Role, Customer, Privilege, Variant, Attachment_or_Sens
     Customer_User
 
 
+class FleetSerializer:
+    pass
+class VehicleSerializer:
+    pass
+class DeploymentSerializer:
+    pass
+
+
 class CustomerSerializer(serializers.ModelSerializer):
+    fleets = FleetSerializer()
+    vehicles = VehicleSerializer()
+    deployments = DeploymentSerializer()
+
     class Meta:
         model = Customer
         fields = '__all__'
@@ -178,6 +190,7 @@ class RefreshTokenSerializer(serializers.Serializer):
 
 
 class GetUserSerializer(serializers.ModelSerializer):
+    customer_id = serializers.ListField(write_only=True, required=False)
     class Meta:
         model = User
         exclude = ['password', 'last_login', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'created_at',
