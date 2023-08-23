@@ -9,17 +9,15 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User, Role, Customer, Variant, Attachment_or_Sensor_Master, Variant_or_Attachment_or_Sensor, Map, \
     Deployment, Deployment_Maps, Vehicle, Vehicle_Attachments, Fleet, Fleet_Vehicle_Deployment, UserGroup, \
-    Group_Deployment_Vehicle_Fleet_Customer, Action, Mission, Mission_Fleet_Map_Deployment_Action, Customer_User
+    Group_Deployment_Vehicle_Fleet_Customer, Action, Mission, Mission_Fleet_Map_Deployment_Action, Customer_User,User_Groups_Assign
 from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer, UpdateUserSerializer, \
     DeleteUserSerializer, RoleSerializer, CustomerSerializer, VariantSerializer, Attachment_SensorSerializer, \
     MapSerializer, DeploymentSerializer, VehicleSerializer, FleetSerializer, GroupSerializer, ActionSerializer, \
     MissionSerializer
 
-from .models import *
-from .serializers import *
 
 # User Management
-
+#Add User
 class RegisterView(generics.GenericAPIView):
     serializer_class = RegisterSerializer
     permission_classes = (IsAuthenticated,)
@@ -28,14 +26,23 @@ class RegisterView(generics.GenericAPIView):
         if not request.user.is_authenticated:
             return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        customer_id = request.data.get('customer_id')
-        role_id = request.data.get('role_id')
-        group_id = request.data.get('user_group', None)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
+        trizlabz_user = serializer.validated_data.get('trizlabz_user', False)
+        customer_ids = serializer.validated_data.get('customer_id', [])
+        role_id = serializer.validated_data.get('role_id')
+        user_group_ids = serializer.validated_data.get('user_group_ids', [])
+
+        # Perform all validations and checks before creating the user
         try:
-            customer = Customer.objects.get(id=customer_id, customer_status=1)
+            customer = Customer.objects.get(id=customer_ids[0], customer_status=1)
         except Customer.DoesNotExist:
             return Response({"error": "Customer does not exist or has an invalid status"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if not trizlabz_user and len(customer_ids) > 1:
+            return Response({"error": "Multiple customer_ids are not allowed for non-trizlabz users"},
                             status=status.HTTP_400_BAD_REQUEST)
 
         role = None
@@ -45,37 +52,46 @@ class RegisterView(generics.GenericAPIView):
             except Role.DoesNotExist:
                 return Response({"error": "Role does not exist"}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        user_group_objects = []
+        if not trizlabz_user:
+            for user_group_id in user_group_ids:
+                try:
+                    user_group = UserGroup.objects.get(id=user_group_id)
+                    user_group_objects.append(user_group)
+                except UserGroup.DoesNotExist:
+                    return Response({"error": f"Invalid user group ID: {user_group_id}"},
+                                    status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if group name exists in request data, otherwise set it to None
-        if 'user_group' in request.data:
-            group_id = request.data['user_group']
-        else:
-            group_id = None
-
-        # Save the user after all validations
+        # Create the user after all validations and checks
         user = serializer.save()
 
-        group_idd = UserGroup.objects.get(id=group_id)
-        Customer_User.objects.create(user=user, customer=customer)
-        user_groups_assign.objects.create(user=user, group=group_idd)
+        # Associate the user with customer(s) and user group(s) if necessary
+        if trizlabz_user or customer_ids:
+            for customer_id in customer_ids:
+                try:
+                    customer = Customer.objects.get(id=customer_id, customer_status=1)
+                    Customer_User.objects.get_or_create(user=user, customer=customer)
+                except Customer.DoesNotExist:
+                    pass
+
+        if not trizlabz_user:
+            for user_group in user_group_objects:
+                User_Groups_Assign.objects.create(user=user, group=user_group)
 
         if role:
             user.role = role
             user.save()
 
-        # Validate group name
-        if group_id:
-            try:
-                user_group = UserGroup.objects.get(id=group_id)
-            except UserGroup.DoesNotExist:
-                return Response({"error": f"Invalid group name: {group_id}"}, status=status.HTTP_400_BAD_REQUEST)
-            user.groups.set([user_group.id])  # Set the user's group
-
         response_data = serializer.data.copy()
-        response_data['customer_id'] = customer.id
-        response_data['user_group'] = {'id': group_id}
+        response_data['customer_data'] = [{'id': c.id, 'name': c.customer_name, 'status': c.customer_status} for c in
+                                          Customer.objects.filter(id__in=customer_ids)]
+
+        user_group_data = [{'id': ug.id, 'name': ug.name} for ug in user_group_objects]
+        response_data['user_group_data'] = user_group_data
+
+        # Remove the 'role' key from response_data
+        if 'role' in response_data:
+            del response_data['role']
 
         response = {
             "message": "User added successfully",
@@ -131,30 +147,36 @@ class LogoutAPIView(generics.GenericAPIView):
 
 # get all users
 class GetUsersAPIView(generics.GenericAPIView):
-    queryset = User.objects.all()
     serializer_class = GetUserSerializer
     permission_classes = (IsAuthenticated,)
 
-    def get(self, request, *args, **kwargs):
+    def get_queryset(self):
         user_id = self.request.query_params.get('user_id')
         customer_id = self.request.query_params.get('customer_id')
         username = self.request.query_params.get('username')
         user_status = self.request.query_params.get('user_status')
         role_id = self.request.query_params.get('role_id')
+        user_group_id = self.request.query_params.get('group_id')
 
-        users_data = self.get_queryset()
+        queryset = User.objects.all()
 
         if user_id:
-            users_data = users_data.filter(id=user_id)
+            queryset = queryset.filter(id=user_id)
         if username:
-            users_data = users_data.filter(username=username)
+            queryset = queryset.filter(username=username)
         if user_status:
-            users_data = users_data.filter(is_active=user_status)
+            queryset = queryset.filter(is_active=user_status)
         if customer_id:
-            users_data = users_data.filter(customer_user__customer_id=customer_id)
+            queryset = queryset.filter(customer_user__customer_id=customer_id)
         if role_id:
-            users_data = users_data.filter(role=role_id)
+            queryset = queryset.filter(role=role_id)
+        if user_group_id:
+            queryset = queryset.filter(user_groups_assign__group_id=user_group_id)
 
+        return queryset
+
+    def get(self, request, *args, **kwargs):
+        users_data = self.get_queryset()
         serializer = self.get_serializer(users_data, many=True)
 
         response_data = []
@@ -162,6 +184,7 @@ class GetUsersAPIView(generics.GenericAPIView):
         for user in serializer.data:
             response_item = {
                 'customer_data': [],
+                'user_group_data': []
             }
 
             customer_users = Customer_User.objects.filter(user_id=user['id'])
@@ -174,6 +197,15 @@ class GetUsersAPIView(generics.GenericAPIView):
                 }
                 response_item['customer_data'].append(customer_item)
 
+            user_group_assignments = User_Groups_Assign.objects.filter(user_id=user['id'])
+
+            for user_group_assignment in user_group_assignments:
+                user_group_item = {
+                    'user_group_id': user_group_assignment.group.id,
+                    'user_group_name': user_group_assignment.group.name,
+                }
+                response_item['user_group_data'].append(user_group_item)
+
             response_item.update(user)
             response_data.append(response_item)
 
@@ -185,39 +217,40 @@ class GetUsersAPIView(generics.GenericAPIView):
 
         return Response(response, status=status.HTTP_200_OK)
 
+#update user
 class UpdateUsersAPIView(generics.GenericAPIView):
     serializer_class = UpdateUserSerializer
-
     permission_classes = (IsAuthenticated,)
 
-    def put(self, request, id):
+    def get_user(self, user_id):
         try:
-            user = User.objects.get(id=id)
+            return User.objects.get(id=user_id)
         except User.DoesNotExist:
+            return None
+
+    def put(self, request, id):
+        user = self.get_user(id)
+        if not user:
             return Response({'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
         update_user_data = request.data
 
-        # Check if customer_ids and role_id are present in the update data
         customer_ids = update_user_data.get('customer_id', [])
         role_id = update_user_data.get('role_id', None)
-        user_group_name = update_user_data.get('user_group', None)
+        user_group_ids = update_user_data.get('user_group_ids', [])
 
         if role_id is not None:
             try:
                 role = Role.objects.get(id=role_id)
                 user.role = role
             except Role.DoesNotExist:
-                return Response({'message': "No such role or invalid role_id"},
-                                status=status.HTTP_404_NOT_FOUND)
+                return Response({'message': "No such role or invalid role_id"}, status=status.HTTP_404_NOT_FOUND)
 
-        if user_group_name is not None:
-            try:
-                user_group = UserGroup.objects.get(name=user_group_name)
-            except UserGroup.DoesNotExist:
-                return Response({'message': "No such user group or invalid user_group_name"},
-                                status=status.HTTP_404_NOT_FOUND)
-            user.user_group = user_group
+        user_groups = []
+        if user_group_ids:
+            user_groups = UserGroup.objects.filter(id__in=user_group_ids)
+            if len(user_groups) != len(user_group_ids):
+                return Response({'message': "One or more user groups do not exist"}, status=status.HTTP_404_NOT_FOUND)
 
         if customer_ids:
             customers = Customer.objects.filter(id__in=customer_ids, customer_status=1)
@@ -225,28 +258,41 @@ class UpdateUsersAPIView(generics.GenericAPIView):
                 return Response({'message': "One or more customers do not exist or have invalid status"},
                                 status=status.HTTP_404_NOT_FOUND)
 
+            if not user.trizlabz_user and len(customer_ids) > 1:
+                return Response({'message': "Multiple customer_ids are not allowed for non-trizlabz users"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
             # Delete the old entries in the Customer_User table for this user
             Customer_User.objects.filter(user=user).delete()
 
-            # Save the user instance
-            user.save()
-
-            # Create new entries in the Customer_User table for this Customer_User
+            # Create new entries in the Customer_User table for this user and customers
             for customer in customers:
                 Customer_User.objects.create(user=user, customer=customer)
 
+        # Update the user instance
         serializer = self.serializer_class(user, data=update_user_data, partial=True)
         if serializer.is_valid():
             serializer.save()
+
+            # Retrieve and include customer data and user group data in the response
+            customer_data = [
+                {'id': cu.customer.id, 'name': cu.customer.customer_name, 'status': cu.customer.customer_status} for cu
+                in Customer_User.objects.filter(user=user)]
+            user_group_data = [{'id': g.group.id, 'name': g.group.name} for g in
+                               User_Groups_Assign.objects.filter(user=user)]
+
+            response_data = serializer.data.copy()
+            response_data['customer_data'] = customer_data
+            response_data['user_group_data'] = user_group_data
+
             response = {
                 "message": "User updated successfully",
-                "data": serializer.data,
-                "user_group": user.user_group.name if user.user_group else None,
-                "user_type": user.user_type,
+                "data": response_data,
             }
             return Response(response, status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class DeleteUsersAPIView(generics.GenericAPIView):

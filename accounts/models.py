@@ -67,6 +67,8 @@ class UserGroup(models.Model):
     class Meta:
         db_table = 'UserGroup'
 
+
+
 #User Management
 class User(AbstractUser):
     first_name = None
@@ -95,6 +97,12 @@ class User(AbstractUser):
     class Meta:
         db_table = 'User'
 
+class User_Groups_Assign(models.Model):
+    group = models.ForeignKey(UserGroup, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = 'user_groups_assign'
 
 class Customer_User(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
