@@ -14,7 +14,8 @@ from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer,
     DeleteUserSerializer, RoleSerializer, CustomerSerializer, VariantSerializer, Attachment_SensorSerializer, \
     MapSerializer, DeploymentSerializer, VehicleSerializer, FleetSerializer, GroupSerializer, ActionSerializer, \
     MissionSerializer
-
+from .models import *
+from .serializers import *
 
 # User Management
 #Add User
