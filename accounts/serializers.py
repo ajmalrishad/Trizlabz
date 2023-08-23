@@ -6,7 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from .models import User, Role, Customer, Privilege, Variant, Attachment_or_Sensor_Master, \
     Variant_or_Attachment_or_Sensor, Map, Deployment, Vehicle_Attachments, Vehicle, Fleet, UserGroup, Action, Mission, \
-    Customer_User
+    Customer_User,User_Groups_Assign
 
 
 class FleetSerializer:
@@ -61,74 +61,49 @@ class RoleSerializer(serializers.ModelSerializer):
         return instance
 
 
-# class RegisterSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = User
-#         fields = '__all__'
-#         extra_kwargs = {
-#             'password': {'write_only': True},  # Exclude password from response
-#             'last_login': {'write_only': True},  # Exclude last_login from response
-#             'is_superuser': {'write_only': True},  # Exclude is_superuser from response
-#             'is_staff': {'write_only': True},  # Exclude is_staff from response
-#             'is_active': {'write_only': True},  # Exclude is_active from response
-#             'date_joined': {'write_only': True},  # Exclude date_joined from response
-#             'groups': {'write_only': True},  # Exclude groups from response
-#             'user_permissions': {'write_only': True},  # Exclude user_permissions from response
-#         }
-#
-#     def create(self, validated_data):
-#         # Hash the password securely before saving
-#         password = validated_data.pop('password')  # Remove password from validated_data
-#         hashed_password = make_password(password)
-#
-#         # Check if 'customer_id' is present in the request data
-#         customer_id = self.context['request'].data.get('customer_id')
-#         if customer_id:
-#             validated_data['customer_id'] = customer_id
-#
-#         user = User.objects.create(password=hashed_password, **validated_data)
-#         return user
-#
-#     def to_representation(self, instance):
-#         representation = super().to_representation(instance)
-#         representation['customer_id'] = representation.pop('customer', None)
-#         representation['role_id'] = representation.pop('role', None)
-#         return representation
 class RegisterSerializer(serializers.ModelSerializer):
-    customer_id = serializers.CharField(write_only=True, required=False)  # Make it optional
-    password = serializers.CharField(write_only=True)  # Add password field
+    role_id = serializers.IntegerField(required=False)
+    customer_id = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
+    user_group_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True,
+                                           required=False)  # Change this to match your field name
+    password = serializers.CharField(write_only=True)
+    trizlabz_user = serializers.BooleanField(write_only=True, required=False, default=False)
 
     class Meta:
         model = User
-        fields = '__all__'
-        extra_kwargs = {
-            'password': {'write_only': True},  # Exclude password from response
-            'last_login': {'write_only': True},  # Exclude last_login from response
-            'is_superuser': {'write_only': True},  # Exclude is_superuser from response
-            'is_staff': {'write_only': True},  # Exclude is_staff from response
-            'is_active': {'write_only': True},  # Exclude is_active from response
-            'date_joined': {'write_only': True},  # Exclude date_joined from response
-            'groups': {'write_only': True},  # Exclude groups from response
-            'user_permissions': {'write_only': True},  # Exclude user_permissions from response
-        }
+        exclude = ('last_login', 'is_superuser', 'is_staff', 'is_active', 'date_joined', 'groups', 'user_permissions')
 
     def create(self, validated_data):
-        password = validated_data.pop('password')  # Remove password from validated_data
+        password = validated_data.pop('password')
+        customer_ids = validated_data.pop('customer_id', [])
+        user_group_ids = validated_data.pop('user_group_ids', [])  # Remove user_group_ids from validated_data
 
         # Hash the password
         hashed_password = make_password(password)
 
-        customer_id = validated_data.pop('customer_id')
-
-
         user = User.objects.create(password=hashed_password, **validated_data)
 
-        try:
-            customer = Customer.objects.get(id=customer_id, customer_status=1)  # Check for status = 1 (True)
-            # Customer_User.objects.create(user=user, customer=customer)
-        except Customer.DoesNotExist:
-            # Handle customer not found or status=False error
-            pass
+        if validated_data.get('trizlabz_user'):
+            for customer_id in customer_ids:
+                try:
+                    customer = Customer.objects.get(id=customer_id, customer_status=1)
+                    Customer_User.objects.create(user=user, customer=customer)
+                except Customer.DoesNotExist:
+                    pass
+        else:
+            if customer_ids:
+                try:
+                    customer = Customer.objects.get(id=customer_ids[0], customer_status=1)
+                    Customer_User.objects.create(user=user, customer=customer)
+                except Customer.DoesNotExist:
+                    pass
+
+            for user_group_id in user_group_ids:
+                try:
+                    user_group = UserGroup.objects.get(id=user_group_id)
+                    user_groups_assign = User_Groups_Assign.objects.create(user=user, group=user_group)
+                except UserGroup.DoesNotExist:
+                    pass
 
         return user
 
@@ -340,6 +315,7 @@ class ActionSerializer(serializers.ModelSerializer):
 
 
 class MissionSerializer(serializers.ModelSerializer):
+    customer = CustomerSerializer(read_only=True)
     deployment = DeploymentSerializer(many=True, read_only=True)
     map = MapSerializer(many=True, read_only=True)
     fleet = FleetSerializer(many=True, read_only=True)
