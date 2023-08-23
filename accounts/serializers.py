@@ -3,13 +3,25 @@ from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-
+from .models import *
 from .models import User, Role, Customer, Privilege, Variant, Attachment_or_Sensor_Master, \
     Variant_or_Attachment_or_Sensor, Map, Deployment, Vehicle_Attachments, Vehicle, Fleet, UserGroup, Action, Mission, \
     Customer_User
 
 
+class FleetSerializer:
+    pass
+class VehicleSerializer:
+    pass
+class DeploymentSerializer:
+    pass
+
+
 class CustomerSerializer(serializers.ModelSerializer):
+    fleets = FleetSerializer()
+    vehicles = VehicleSerializer()
+    deployments = DeploymentSerializer()
+
     class Meta:
         model = Customer
         fields = '__all__'
@@ -119,8 +131,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             pass
 
         return user
-
-
 class LoginSerializer(serializers.ModelSerializer):
     password = serializers.CharField(max_length=68, min_length=6, write_only=True)
     username = serializers.CharField(max_length=255, min_length=3)
@@ -178,6 +188,7 @@ class RefreshTokenSerializer(serializers.Serializer):
 
 
 class GetUserSerializer(serializers.ModelSerializer):
+    customer_id = serializers.ListField(write_only=True, required=False)
     class Meta:
         model = User
         exclude = ['password', 'last_login', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'created_at',
@@ -327,6 +338,7 @@ class ActionSerializer(serializers.ModelSerializer):
 
 
 class MissionSerializer(serializers.ModelSerializer):
+    customer = CustomerSerializer(read_only=True)
     deployment = DeploymentSerializer(many=True, read_only=True)
     map = MapSerializer(many=True, read_only=True)
     fleet = FleetSerializer(many=True, read_only=True)
@@ -335,3 +347,9 @@ class MissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Mission
         fields = '__all__'
+
+class UsergroupassignSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = user_groups_assign
+        fields = '__all__'
+

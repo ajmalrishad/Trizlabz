@@ -83,7 +83,6 @@ class User(AbstractUser):
     cloud_password = models.CharField(max_length=200, null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
-    user_group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, null=True)
 
 
     def tokens(self):
@@ -284,6 +283,7 @@ class Action(models.Model):
 # Mission Management
 class Mission(models.Model):
     name = models.CharField(max_length=255, blank=False, unique=True)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     status = models.BooleanField(default=True)
     created_by = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -308,3 +308,9 @@ class Mission_Fleet_Map_Deployment_Action(models.Model):
     class Meta:
         db_table = 'Mission_Fleet_Map_Deployment_Action'
 
+class user_groups_assign(models.Model):
+    group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, default='')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, default='')
+
+    class Meta:
+        db_table = 'user_groups_assign'
