@@ -2439,23 +2439,51 @@ class DashBoardAPIView(generics.GenericAPIView):
         user = request.user
         uid = user.id
         uname = user.username
-        user_role=user.role
+        user_role = user.role
 
         if user.is_authenticated:   # True
 
-            customer_count = Customer.objects.count()
+            if user.is_superuser:
+                customer_count = Customer.objects.count()
 
-            user_count = User.objects.exclude(is_superuser=1).count()
+                user_count = User.objects.exclude(is_superuser=1).count()
 
-            fleet_count = Fleet.objects.count()
+                fleet_count = Fleet.objects.count()
 
-            deployment_count = Deployment.objects.count()
+                deployment_count = Deployment.objects.count()
 
-            vehicle_count = Vehicle.objects.count()
+                vehicle_count = Vehicle.objects.count()
 
-            group_count = UserGroup.objects.count()
+                group_count = UserGroup.objects.count()
 
-            if user.trizlabz_user:  # Check if the user is a trizlab_user
+                total_count_data = {
+                    "customer_count": customer_count,
+                    "user_count": user_count,
+                    "deployment_count": deployment_count,
+                    "fleet_count": fleet_count,
+                    "vehicle_count": vehicle_count,
+                    "group_count": group_count,
+                }
+                return Response(total_count_data, status=200)
+
+            elif user.trizlabz_user:  # Check if the user is a trizlab_user
+
+                userlogged = Customer_User.objects.filter(user=uid)
+                for usr in userlogged:
+                    customerdata = usr.customer_id
+
+                customer_count = Customer_User.objects.filter(user=uid).count()
+
+                user_count = Customer_User.objects.filter(user=uid).count()
+
+                fleet_count = Fleet.objects.filter(customer=customerdata).count()
+
+                deployment_count = Deployment.objects.filter(customer=customerdata).count()
+
+                vehicle_count = Vehicle.objects.filter(customer=customerdata).count()
+
+                group_count = User.objects.filter(id=uid).count()
+
                 total_count_data = {
                     "customer_count": customer_count,
                     "user_count": user_count,
