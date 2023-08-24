@@ -102,7 +102,7 @@ class User_Groups_Assign(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     class Meta:
-        db_table = 'user_groups_assign'
+        db_table = 'User_Groups_Assign'
 
 class Customer_User(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)

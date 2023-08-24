@@ -133,6 +133,14 @@
           <option value="import_excel_db.resource.Guest" />
           <option value="import_excel_db.resource.guidesticon" />
           <option value="import_excel_db.views.filelist" />
+          <option value="accounts.views.*" />
+          <option value="import_excel_db.views.file_not_found" />
+          <option value="import_excel_db.views.status2" />
+          <option value="import_excel_db.views.filename" />
+          <option value="import_excel_db.views.response" />
+          <option value="import_excel_db.views.upload_" />
+          <option value="import_excel_db.views.file_name" />
+          <option value="import_excel_db.views.Print" />
         </list>
       </option>
     </inspection_tool>
