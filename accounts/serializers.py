@@ -98,13 +98,6 @@ class RegisterSerializer(serializers.ModelSerializer):
                 except Customer.DoesNotExist:
                     pass
 
-            for user_group_id in user_group_ids:
-                try:
-                    user_group = UserGroup.objects.get(id=user_group_id)
-                    user_groups_assign = User_Groups_Assign.objects.create(user=user, group=user_group)
-                except UserGroup.DoesNotExist:
-                    pass
-
         return user
 
 
