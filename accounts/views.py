@@ -608,9 +608,9 @@ class GetAttachment_SensorAPIView(generics.ListAPIView):
     def get(self, request, *args, **kwargs):
         # Get query parameters
         attachment_sensor_id = self.request.query_params.get('attachment_sensor_id')
-        name = self.request.query_params.get('name')
+        name = self.request.query_params.get('attachment_name')
         attachment_or_sensor = self.request.query_params.get('attachment_or_sensor')
-        status = self.request.query_params.get('status')
+        status = self.request.query_params.get('attachment_status')
 
         if attachment_sensor_id:
             try:
@@ -996,9 +996,10 @@ class GetMapListAPIView(generics.ListCreateAPIView):
     serializer_class = MapSerializer
 
     def get(self, request):
-        map_id = request.query_params.get("map_id")
+        map_id = request.query_params.get('map_id')
         map_name = request.query_params.get('map_name')
         customer_id = request.query_params.get('customer_id')
+        deployment_id = request.query_params.get('deployment_id')
         map_status = request.query_params.get('map_status')
 
         maps = Map.objects.all()
@@ -1012,6 +1013,8 @@ class GetMapListAPIView(generics.ListCreateAPIView):
             maps = maps.filter(customer_id=customer_id)
         if map_status:
             maps = maps.filter(map_status=map_status)
+        if deployment_id:
+            maps = maps.filter(deployment_maps__deployment_id=deployment_id)
 
         if not maps.exists():
             return Response({"error": "No maps found."}, status=status.HTTP_404_NOT_FOUND)
@@ -1096,7 +1099,6 @@ class AddDeploymentCreateView(generics.CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         deployment_data = request.data
-        print('==========',deployment_data)
         deployment_name = deployment_data.get('deployment_name')
         list_of_maps_attached_data = deployment_data.get('list_of_maps_attached', [])
         customer_id = deployment_data.get('customer_id')
@@ -1218,7 +1220,7 @@ class GetDeploymentAPIView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Deployment.objects.all()
 
-        deployment_id = self.request.query_params.get('id')
+        deployment_id = self.request.query_params.get('deployment_id')
         deployment_name = self.request.query_params.get('deployment_name')
         deployment_status = self.request.query_params.get('deployment_status')
         customer_id = self.request.query_params.get('customer_id')
@@ -1489,6 +1491,9 @@ class GetVehicleAPIView(generics.ListAPIView):
         vehicle_label = self.request.query_params.get('vehicle_label')
         vehicle_status = self.request.query_params.get('vehicle_status')
         customer_id = self.request.query_params.get('customer_id')
+        variant_name = self.request.query_params.get('variant_name')
+        fleet_id = self.request.query_params.get('fleet_id')
+        deployment_id = self.request.query_params.get('deployment_id')
 
         if vehicle_id:
             queryset = queryset.filter(id=vehicle_id)
@@ -1501,6 +1506,12 @@ class GetVehicleAPIView(generics.ListAPIView):
 
         if customer_id:
             queryset = queryset.filter(customer_id=customer_id)
+        if variant_id:
+            queryset = queryset.filter(vehicle_label__iexact=variant_name)
+        if fleet_id:
+            queryset = queryset.filter(fleet_vehicle_deployment__fleet_id=fleet_id)
+        if deployment_id:
+            queryset = queryset.filter(fleet_vehicle_deployment__deployment_id=deployment_id)
 
         return queryset
 
@@ -1707,12 +1718,15 @@ class GetFleetAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = Fleet.objects.all()
+        fleet_id = self.request.query_params.get('fleet_id')
         fleet_name = self.request.query_params.get('fleet_name')
         deployment_id = self.request.query_params.get('deployment_id')
         customer_id = self.request.query_params.get('customer_id')
         fleet_status = self.request.query_params.get('fleet_status')
         user_id = self.request.query_params.get('user_id')
 
+        if fleet_id:
+            queryset = queryset.filter(id=fleet_id)
         if fleet_name:
             queryset = queryset.filter(name=fleet_name)
         if deployment_id:
@@ -2144,9 +2158,10 @@ class GetActionAPIView(generics.ListAPIView):
     serializer_class = ActionSerializer
 
     def get(self, request, *args, **kwargs):
-        action_id = request.query_params.get('id')
-        action_name = request.query_params.get('name')
-        action_status = request.query_params.get('status')
+        action_id = request.query_params.get('action_id')
+        action_name = request.query_params.get('action_name')
+        action_status = request.query_params.get('action_status')
+        mission_id = request.query_params.get('mission_id')
 
         if action_id is None and action_name is None and action_status is None:
             return Response({"message": "At least one of id, name, or status must be provided."},
@@ -2160,6 +2175,8 @@ class GetActionAPIView(generics.ListAPIView):
             queryset = queryset.filter(name__iexact=action_name)
         if action_status:
             queryset = queryset.filter(status=action_status)
+        if mission_id:
+            queryset = queryset.filter(mission_fleet_map_deployment_action__mission_id=mission_id)
 
         if not queryset.exists():
             return Response({"message": "Action data not found."},
@@ -2429,35 +2446,38 @@ class GetMissionAPIView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
-        mission_id = request.query_params.get('id')
-        mission_name = request.query_params.get('name')
-        mission_status = request.query_params.get('status')
+        mission_id = request.query_params.get('mission_id')
+        mission_name = request.query_params.get('mission_name')
+        mission_status = request.query_params.get('mission_status')
+        deployment_id = request.query_params.get('deployment_id')
+        fleet_id = request.query_params.get('fleet_id')
+        customer_id = request.query_params.get('customer_id')
 
-        if mission_id is None and mission_name is None and mission_status is None:
-            return Response(
-                {"message": "At least one of mission_id, mission_name, or mission_status must be provided."},
-                status=status.HTTP_400_BAD_REQUEST)
+        queryset = Mission.objects.all()
+        mission_queryset = Mission_Fleet_Map_Deployment_Action.objects.select_related(
+            'mission', 'deployment', 'map', 'fleet', 'action'
+        )
 
         try:
-            mission_queryset = Mission_Fleet_Map_Deployment_Action.objects.select_related(
-                'mission', 'deployment', 'map', 'fleet', 'action'
-            )
-
+            if fleet_id:
+                mission_queryset =mission_queryset.filter(fleet_id=fleet_id)
+            if deployment_id:
+                mission_queryset = mission_queryset.filter(deployment_id=deployment_id)
             if mission_id:
-                mission_instance = mission_queryset.filter(id=mission_id).first()
-            elif mission_name:
-                mission_instance = mission_queryset.filter(name=mission_name).first()
-            elif mission_status:
-                mission_queryset = mission_queryset.filter(
-                    mission__status=mission_status
-                )
-                mission_instance = mission_queryset.first()
+                queryset = queryset.filter(id=mission_id)
+            if mission_name:
+                queryset = queryset.filter(name=mission_name)
+            if mission_status:
+                queryset = queryset.filter(status=mission_status)
+            if customer_id:
+                queryset = queryset.filter(customer_id=customer_id)
 
-            if mission_instance is None:
+            mission_instance = mission_queryset
+
+            if not mission_instance:
                 return Response({"message": "Mission not found."},
                                 status=status.HTTP_404_NOT_FOUND)
 
-            # Serialize the data
             attached_map_data = MapSerializer(mission_instance.map).data
             attached_deployment_data = DeploymentSerializer(mission_instance.deployment).data
             attached_fleet_data = FleetSerializer(mission_instance.fleet).data
@@ -2503,10 +2523,8 @@ class DashBoardAPIView(generics.GenericAPIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         uid = user.id
-        uname = user.username
-        user_role = user.role
 
-        if user.is_authenticated:   # True
+        if user.is_authenticated:  # True
 
             if user.is_superuser:
                 customer_count = Customer.objects.count()
@@ -2533,21 +2551,17 @@ class DashBoardAPIView(generics.GenericAPIView):
 
             elif user.trizlabz_user:  # Check if the user is a trizlab_user
 
-                userlogged = Customer_User.objects.filter(user=uid)
-                for usr in userlogged:
-                    customerdata = usr.customer_id
-
                 customer_count = Customer_User.objects.filter(user=uid).count()
 
-                user_count = Customer_User.objects.filter(user=uid).count()
+                user_count = User.objects.filter(id=uid).count()
 
-                fleet_count = Fleet.objects.filter(customer=customerdata).count()
+                fleet_count = Fleet.objects.filter(customer__customer_user__user_id=uid).count()
 
-                deployment_count = Deployment.objects.filter(customer=customerdata).count()
+                deployment_count = Deployment.objects.filter(customer__customer_user__user_id=uid).count()
 
-                vehicle_count = Vehicle.objects.filter(customer=customerdata).count()
+                vehicle_count = Vehicle.objects.filter(customer__customer_user__user_id=uid).count()
 
-                group_count = User.objects.filter(id=uid).count()
+                group_count = User_Groups_Assign.objects.filter(user=uid).count()
 
                 total_count_data = {
                     "customer_count": customer_count,
@@ -2559,25 +2573,24 @@ class DashBoardAPIView(generics.GenericAPIView):
                 }
                 return Response(total_count_data, status=200)
 
-            else:    #customer user
-                userlogged=Customer_User.objects.filter(user=uid)
-                for usr in userlogged:
-                    customerdata=usr.customer_id
+            else:  # customer user
 
                 customer_count = Customer_User.objects.filter(user=uid).count()
 
-                user_count = Customer_User.objects.filter(user=uid).count()
+                user_count = User.objects.filter(id=uid).count()
 
-                fleet_count = Fleet.objects.filter(customer=customerdata).count()
+                fleet_count = Fleet.objects.filter(customer__customer_user__user_id=uid).count()
 
-                deployment_count = Deployment.objects.filter(customer=customerdata).count()
+                deployment_count = Deployment.objects.filter(customer__customer_user__user_id=uid).count()
 
-                vehicle_count = Vehicle.objects.filter(customer=customerdata).count()
+                vehicle_count = Vehicle.objects.filter(customer__customer_user__user_id=uid).count()
 
-                group_count = User.objects.filter(id=uid).count()
+                group_count = User_Groups_Assign.objects.filter(user=uid).count()
 
                 related_count_data = {
-                    "customer_count": customer_count if hasattr(user, 'customer') else 0,
+                    "message":" Dashboard Lisetd Successfully",
+                    "status":"Success",
+                    "customer_count": customer_count,
                     "user_count": user_count,
                     "deployment_count": deployment_count,
                     "fleet_count": fleet_count,
@@ -2585,6 +2598,6 @@ class DashBoardAPIView(generics.GenericAPIView):
                     "group_count": group_count,
                 }
                 return Response(related_count_data, status=200)
-            
+
         else:
             return Response({"error": "User not authenticated"}, status=401)
