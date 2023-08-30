@@ -13,7 +13,7 @@ from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, Create
     GetVehicleAPIView, DeleteVehicleAPIView, AddFleetAPIView, UpdateFleetAPIView, GetFleetAPIView, DeleteFleetAPIView, \
     AddGroupAPIView, UpdateGroupAPIView, GetGroupAPIView, DeleteGroupAPIView, AddActionAPIView, UpdateActionAPIView, \
     GetActionAPIView, DeleteActionAPIView, AddMissionAPIView, UpdateMissionAPIView, GetMissionAPIView, \
-    DeleteMissionAPIView, DashBoardAPIView
+    DeleteMissionAPIView, DashBoardAPIView, ForgotPasswordView, ResetPasswordView
 
 urlpatterns = [
     # User Management
@@ -97,4 +97,7 @@ urlpatterns = [
     path('api/setup/mission-management/delete-mission/<int:id>', DeleteMissionAPIView.as_view(), name='delete-mission'),
     # Dash Board
     path('api/dashboard', DashBoardAPIView.as_view(), name='dashboard'),
+    #password reset
+    path('api/forgot_password/', ForgotPasswordView.as_view(), name='forgot_password'),
+    path('api/reset_password/', ResetPasswordView.as_view(), name='reset_password'),
 ]

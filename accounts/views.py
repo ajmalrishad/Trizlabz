@@ -5,7 +5,9 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken,AccessToken
+from rest_framework.permissions import AllowAny
+
 
 from .models import User, Role, Customer, Variant, Attachment_or_Sensor_Master, Variant_or_Attachment_or_Sensor, Map, \
     Deployment, Deployment_Maps, Vehicle, Vehicle_Attachments, Fleet, Fleet_Vehicle_Deployment, UserGroup, \
@@ -13,7 +15,7 @@ from .models import User, Role, Customer, Variant, Attachment_or_Sensor_Master, 
 from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer, UpdateUserSerializer, \
     DeleteUserSerializer, RoleSerializer, CustomerSerializer, VariantSerializer, Attachment_SensorSerializer, \
     MapSerializer, DeploymentSerializer, VehicleSerializer, FleetSerializer, GroupSerializer, ActionSerializer, \
-    MissionSerializer
+    MissionSerializer,ForgotPasswordSerializer,ResetPasswordSerializer
 
 
 # User Management
@@ -2600,3 +2602,57 @@ class DashBoardAPIView(generics.GenericAPIView):
 
         else:
             return Response({"error": "User not authenticated"}, status=401)
+
+
+#Password Reset& Forgot_Password
+class ForgotPasswordView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            user = User.objects.filter(email=email).first()
+            if user:
+                token = RefreshToken.for_user(user)
+                return Response({
+                    'message': 'Access token generated successfully',
+                    'status': 'success',
+                    'data': {'access_token': str(token.access_token)}
+                })
+            return Response({
+                'message': 'User not found',
+                'status': 'failure',
+                'data': []
+            }, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class ResetPasswordView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            token = serializer.validated_data['token']
+            password = serializer.validated_data['password']
+
+            try:
+                refresh = AccessToken(token)
+                user = User.objects.get(id=refresh.payload['user_id'])
+
+                user.set_password(password)
+                user.save()
+
+                return Response({
+                    'message': 'Password reset successful',
+                    'status': 'success',
+                    'data': []
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({
+                    'message': 'Invalid token',
+                    'status': 'failure',
+                    'data': []
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
