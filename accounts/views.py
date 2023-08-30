@@ -34,7 +34,7 @@ class RegisterView(generics.GenericAPIView):
         trizlabz_user = serializer.validated_data.get('trizlabz_user', False)
         customer_ids = serializer.validated_data.get('customer_id', [])
         role_id = serializer.validated_data.get('role_id')
-        user_group_ids = serializer.validated_data.get('user_group_ids', [])
+        user_group_ids = serializer.validated_data.get('user_group_id', [])
 
         # Perform all validations and checks before creating the user
         try:
@@ -239,7 +239,7 @@ class UpdateUsersAPIView(generics.GenericAPIView):
 
         customer_ids = update_user_data.get('customer_id', [])
         role_id = update_user_data.get('role_id', None)
-        user_group_ids = update_user_data.get('user_group_ids', [])
+        user_group_ids = update_user_data.get('user_group_id', [])
 
         if role_id is not None:
             try:
