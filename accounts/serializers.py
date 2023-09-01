@@ -167,7 +167,7 @@ class GetUserSerializer(serializers.ModelSerializer):
 
 class UpdateUserSerializer(serializers.ModelSerializer):
     customer_id = serializers.ListField(write_only=True, required=False)
-    password = serializers.CharField(required=False)
+    # password = serializers.CharField(required=False)
 
     class Meta:
         model = User

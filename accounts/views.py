@@ -935,8 +935,14 @@ class UpdateVariantAPIView(generics.UpdateAPIView):
                     'variant_name': variant.variant_name,
                     'variant_description': variant.variant_description,
                     'variant_status': variant.variant_status,
-                    'attachment_option': attachment_data,
-                    'sensor_option': sensor_data
+                    'attachment_option': {
+                        'id': attachment_id,
+                        'name':attachment_name
+                    },
+                    'sensor_option':{
+                        'id': sensor_id,
+                        'name': sensor_name
+                    }
                 }
             }
         return Response(response, status=status.HTTP_200_OK)
@@ -1507,8 +1513,8 @@ class GetVehicleAPIView(generics.ListAPIView):
 
         if customer_id:
             queryset = queryset.filter(customer_id=customer_id)
-        if variant_id:
-            queryset = queryset.filter(vehicle_label__iexact=variant_name)
+        if variant_name:
+            queryset = queryset.filter(vehicle_variant__iexact=variant_name)
         if fleet_id:
             queryset = queryset.filter(fleet_vehicle_deployment__fleet_id=fleet_id)
         if deployment_id:
