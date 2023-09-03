@@ -1409,6 +1409,7 @@ class AddVehicleAPIView(generics.CreateAPIView):
 
 class UpdateVehicleAPIView(generics.UpdateAPIView):
     permission_classes = (IsAuthenticated,)
+    serializer_class = VehicleSerializer
 
     def put(self, request, *args, **kwargs):
         data = request.data
@@ -1419,34 +1420,30 @@ class UpdateVehicleAPIView(generics.UpdateAPIView):
         except Vehicle.DoesNotExist:
             return Response({"detail": "Vehicle not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        attachment_options_data = data.get('attachment_option', [])
-
-        vehicle_data = {
-            'vehicle_label': data.get('vehicle_label', vehicle.vehicle_label),
-            'endpoint_id': data.get('endpoint_id', vehicle.endpoint_id),
-            'application_id': data.get('application_id', vehicle.application_id),
-            'vehicle_variant': data.get('vehicle_variant', vehicle.vehicle_variant),
-            'customer_id': data.get('customer_id', vehicle.customer_id),
-        }
+        # Update vehicle data
+        vehicle.vehicle_label = data.get('vehicle_label', vehicle.vehicle_label)
+        vehicle.endpoint_id = data.get('endpoint_id', vehicle.endpoint_id)
+        vehicle.application_id = data.get('application_id', vehicle.application_id)
+        vehicle.vehicle_variant = data.get('vehicle_variant', vehicle.vehicle_variant)
+        vehicle.customer_id = data.get('customer_id', vehicle.customer_id)
 
         # Check if a vehicle with the same label already exists
-        if Vehicle.objects.exclude(pk=vehicle_id).filter(vehicle_label=vehicle_data['vehicle_label']).exists():
+        if Vehicle.objects.exclude(pk=vehicle_id).filter(vehicle_label=vehicle.vehicle_label).exists():
             return Response({"vehicle_label": "A vehicle with this label already exists."},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # Update the vehicle
-        for key, value in vehicle_data.items():
-            setattr(vehicle, key, value)
         vehicle.save()
+
+        # Clear existing attachment options for the vehicle
+        Vehicle_Attachments.objects.filter(vehicle=vehicle).delete()
 
         # Store the attachment options for the response
         response_attachment_options = []
 
-        for option_data in attachment_options_data:
+        for option_data in data.get('attachment_option', []):
             name = option_data.get('name')
             attachment_sensor_id = option_data.get('attachment_sensor_id')
 
-            # Check if an attachment option with the same name exists
             try:
                 attachment_option = Attachment_or_Sensor_Master.objects.get(name=name)
             except Attachment_or_Sensor_Master.DoesNotExist:
@@ -1454,7 +1451,6 @@ class UpdateVehicleAPIView(generics.UpdateAPIView):
                     {"attachment_option": [{"name": f"Attachment option with name '{name}' does not exist."}]},
                     status=status.HTTP_400_BAD_REQUEST)
 
-            # Check if an attachment option with the same attachment_sensor_id exists
             try:
                 existing_attachment = Attachment_or_Sensor_Master.objects.get(attachment_sensor_id=attachment_sensor_id)
             except Attachment_or_Sensor_Master.DoesNotExist:
@@ -1494,6 +1490,7 @@ class GetVehicleAPIView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Vehicle.objects.all()
 
+        # Filter options
         vehicle_id = self.request.query_params.get('vehicle_id')
         vehicle_label = self.request.query_params.get('vehicle_label')
         vehicle_status = self.request.query_params.get('vehicle_status')
@@ -1513,10 +1510,13 @@ class GetVehicleAPIView(generics.ListAPIView):
 
         if customer_id:
             queryset = queryset.filter(customer_id=customer_id)
+
         if variant_name:
             queryset = queryset.filter(vehicle_variant__iexact=variant_name)
+
         if fleet_id:
             queryset = queryset.filter(fleet_vehicle_deployment__fleet_id=fleet_id)
+
         if deployment_id:
             queryset = queryset.filter(fleet_vehicle_deployment__deployment_id=deployment_id)
 
@@ -1527,37 +1527,35 @@ class GetVehicleAPIView(generics.ListAPIView):
         serialized_data = self.get_serializer(queryset, many=True).data
 
         response_data = {
-            "message": "Vehicle Listed Successfully",
+            "message": "Vehicles Listed Successfully",
             "data": []
         }
 
         for data in serialized_data:
             vehicle_id = data["id"]
-            vehicle_label = data["vehicle_label"]
-            vehicle_status = data["vehicle_status"]
-            customer_id = data["customer"]
-            attachment_option = self.get_attachementoptions(vehicle_id)
+            attachment_options = self.get_attachment_options(vehicle_id)
 
             response_data["data"].append({
                 "id": vehicle_id,
-                "vehicle_label": vehicle_label,
-                "vehicle_status": vehicle_status,
-                "customer_id": customer_id,
-                "attachment_option": attachment_option
+                "vehicle_label": data["vehicle_label"],
+                "vehicle_variant": data["vehicle_variant"],
+                "vehicle_status": data["vehicle_status"],
+                "customer_id": data["customer"],
+                "attachment_options": attachment_options
             })
 
         return Response(response_data, status=status.HTTP_200_OK)
 
-    def get_attachementoptions(self, vehicle_id):
-        attachment_option = Vehicle_Attachments.objects.filter(id=vehicle_id)
-        serialized_data = [
+    def get_attachment_options(self, vehicle_id):
+        attachment_options = Vehicle_Attachments.objects.filter(vehicle_id=vehicle_id)
+        attachment_option_data = [
             {
-                "attachment_sensor_id": attachments.attachment_option.attachment_sensor_id,
-                "name": attachments.attachment_option.name
+                "attachment_sensor_id": attachment.attachment_option.attachment_sensor_id,
+                "name": attachment.attachment_option.name
             }
-            for attachments in attachment_option
+            for attachment in attachment_options
         ]
-        return serialized_data
+        return attachment_option_data
 
 
 class DeleteVehicleAPIView(generics.GenericAPIView):
@@ -1855,6 +1853,8 @@ class AddGroupAPIView(generics.GenericAPIView):
         fleets_attached = []
         deployments_attached = []
 
+        user_group_relation = User_Groups_Assign(user_id=request.user.id, group_id=group.id)
+        user_group_relation.save()
         Group_Deployment_Vehicle_Fleet_Customer.objects.create(group=group,
                                                                fleet=fleet_obj,
                                                                vehicle=vehicle_obj,
@@ -1989,28 +1989,16 @@ class UpdateGroupAPIView(generics.RetrieveUpdateAPIView):
         updated_group = serializer.save()
 
         # Clear the existing related objects for the group
-        Group_Deployment_Vehicle_Fleet_Customer.objects.filter(group=updated_group).delete()
-
-        # Store the updated response data
-        group_res_data = []
-        fleets_attached = []
-        for fleet_data in fleets_attached:
-            fleet_id = fleet_data['fleet_id']
-            fleet_name = fleet_data['fleet_name']
-            fleet_obj = Fleet.objects.get(id=fleet_id, name=fleet_name)
-            fleets_attached.append({
-                "fleet_id": fleet_obj.id,
-                "fleet_name": fleet_obj.name
-            }),
-            group_res_data.append({
-                "group_id": group.id,
-                "group_name": group.name,
-                "group_status": group.status
-            })
+        User_Groups_Assign.objects.filter(group=group).delete()
+        Group_Deployment_Vehicle_Fleet_Customer.objects.filter(group=group).delete()
 
         response_data = {
             "message": "Group updated successfully.",
-            "group_data": group_res_data,
+            "group_data": {
+                "group_id": updated_group.id,
+                "group_name": updated_group.name,
+                "group_status": updated_group.status
+            },
             "attached_vehicles": vehicles_attached,
             "attached_customers": customers_attached,
             "attached_deployments": deployments_attached,
@@ -2045,7 +2033,7 @@ class GetGroupAPIView(generics.ListAPIView):
             if customer_id:
                 group_instance = UserGroup.objects.get(group_deployment_vehicle_fleet_customer__customer_id=customer_id)
             if user_id:
-                group_instance = UserGroup.objects.get(group_deployment_vehicle_fleet_customer__customer__customer_user__user_id=user_id)
+                group_instance = UserGroup.objects.get(user_groups_assign__user_id=user_id)
 
             group_data = Group_Deployment_Vehicle_Fleet_Customer.objects.select_related(
                 'group', 'deployment', 'vehicle', 'fleet', 'customer'
@@ -2171,7 +2159,7 @@ class GetActionAPIView(generics.ListAPIView):
         mission_id = request.query_params.get('mission_id')
 
         if action_id is None and action_name is None and action_status is None:
-            return Response({"message": "At least one of id, name, or status must be provided."},
+            return Response({"message": "At least one of action_id, action_name, or action_status must be provided."},
                             status=status.HTTP_400_BAD_REQUEST)
 
         queryset = Action.objects.all()
@@ -2217,12 +2205,11 @@ class DeleteActionAPIView(generics.GenericAPIView):
 # Missing Management
 class AddMissionAPIView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
-    serializer_class = MissionSerializer
 
     def post(self, request, *args, **kwargs):
         data = request.data
         mission_name = data.get('name')
-        customer = data.get('customer_id')
+        customer_id = data.get('customer_id')
         map_data = data.get('maps', [])
         fleets_data = data.get('fleets', [])
         deployments_data = data.get('deployments', [])
@@ -2230,17 +2217,14 @@ class AddMissionAPIView(generics.GenericAPIView):
 
         # Check if a mission with the same name already exists
         if Mission.objects.filter(name=mission_name).exists():
-            return Response({'message': 'Mission with the same name already exists'},
-                            status=status.HTTP_208_ALREADY_REPORTED)
-        try:
-            cus_obj = Customer.objects.get(id=customer)
-        except Customer.DoesNotExist:
-            return Response({"message": f"Customer with ID {customer} does not exist."},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': 'Mission with the same name already exists'}, status=status.HTTP_208_ALREADY_REPORTED)
 
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        mission = serializer.save()
+        try:
+            customer = Customer.objects.get(id=customer_id)
+        except Customer.DoesNotExist:
+            return Response({"message": f"Customer with ID {customer_id} does not exist."}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
         # Store the response data lists
         mission_data = []
@@ -2256,22 +2240,20 @@ class AddMissionAPIView(generics.GenericAPIView):
             try:
                 map_obj = Map.objects.get(id=map_id, map_name=map_name)
             except Map.DoesNotExist:
-                return Response({"message": f"Map with ID or Name does not exist."},
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response({"message": f"Map with ID or Name does not exist."}, status=status.HTTP_400_BAD_REQUEST)
             maps_attached.append({
                 "map_id": map_obj.id,
                 "map_name": map_obj.map_name,
             })
 
-            # Loop through the fleets data and create related objects
+        # Loop through the fleets data and create related objects
         for fleet_item in fleets_data:
             fleet_id = fleet_item.get('id')
             fleet_name = fleet_item.get('name')
             try:
                 fleet_obj = Fleet.objects.get(id=fleet_id, name=fleet_name)
             except Fleet.DoesNotExist:
-                return Response({"message": f"Fleet with ID or Name does not exist."},
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response({"message": f"Fleet with ID or Name does not exist."}, status=status.HTTP_400_BAD_REQUEST)
             fleets_attached.append({
                 "fleet_id": fleet_obj.id,
                 "fleet_name": fleet_obj.name,
@@ -2284,22 +2266,28 @@ class AddMissionAPIView(generics.GenericAPIView):
             try:
                 deployment_obj = Deployment.objects.get(id=deployment_id, deployment_name=deployment_name)
             except Deployment.DoesNotExist:
-                return Response({"message": "Invalid Deployment ID or Name."},
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response({"message": "Invalid Deployment ID or Name."}, status=status.HTTP_400_BAD_REQUEST)
             deployments_attached.append({
                 "deployment_id": deployment_obj.id,
                 "deployment_name": deployment_obj.deployment_name,
             })
+
+            # Loop through the action data and create related objects
             for action in action_data:
-                id = action.get('id')
-                name = action.get('name')
+                action_id = action.get('id')
+                action_name = action.get('name')
                 try:
-                    action_obj = Action.objects.get(id=id, name=name)
+                    action_obj = Action.objects.get(id=action_id, name=action_name)
                 except Action.DoesNotExist:
-                    return Response({"message": "Invalid Action ID or Name."},
-                                    status=status.HTTP_400_BAD_REQUEST)
-                Mission_Fleet_Map_Deployment_Action.objects.create(mission=mission, action=action_obj, map=map_obj,
-                                                                   deployment=deployment_obj, fleet=fleet_obj)
+                    return Response({"message": "Invalid Action ID or Name."}, status=status.HTTP_400_BAD_REQUEST)
+                mission = Mission.objects.create(name=mission_name, customer=customer)
+                Mission_Fleet_Map_Deployment_Action.objects.create(
+                    mission=mission,
+                    action=action_obj,
+                    map=map_obj,
+                    deployment=deployment_obj,
+                    fleet=fleet_obj
+                )
                 action_attached.append({
                     "action_id": action_obj.id,
                     "action_name": action_obj.name,
