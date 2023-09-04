@@ -2302,6 +2302,7 @@ class AddMissionAPIView(generics.GenericAPIView):
 
         response_data = {
             "message": "Mission added successfully.",
+            "customer_id": customer_id,
             "mission_data": mission_data,
             "attached_maps": maps_attached,
             "attached_deployments": deployments_attached,
@@ -2329,6 +2330,7 @@ class UpdateMissionAPIView(generics.GenericAPIView):
 
         data = request.data
         mission_name = data.get('name')
+        customer_id = data.get('customer_id')
         map_data = data.get('maps', [])
         fleets_data = data.get('fleets', [])
         deployments_data = data.get('deployments', [])
@@ -2338,6 +2340,9 @@ class UpdateMissionAPIView(generics.GenericAPIView):
         if Mission.objects.filter(name=mission_name).exclude(id=id).exists():
             return Response({'message': 'Mission with the same name already exists'},
                             status=status.HTTP_208_ALREADY_REPORTED)
+        if customer_id and not Customer.objects.filter(id=customer_id).exists():
+            return Response({'message': 'Customer with ID {} does not exist'.format(customer_id)},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -2427,6 +2432,7 @@ class UpdateMissionAPIView(generics.GenericAPIView):
 
         response_data = {
             "message": "Mission updated successfully.",
+            "customer_id": customer_id,
             "mission_data": mission_data,
             "attached_maps": map_data,
             "attached_deployments": deployments_data,
@@ -2455,7 +2461,7 @@ class GetMissionAPIView(generics.GenericAPIView):
 
         try:
             if fleet_id:
-                mission_queryset =mission_queryset.filter(fleet_id=fleet_id)
+                mission_queryset = mission_queryset.filter(fleet_id=fleet_id)
             if deployment_id:
                 mission_queryset = mission_queryset.filter(deployment_id=deployment_id)
             if mission_id:
@@ -2467,25 +2473,49 @@ class GetMissionAPIView(generics.GenericAPIView):
             if customer_id:
                 queryset = queryset.filter(customer_id=customer_id)
 
-            mission_instance = mission_queryset
+            mission_instance = mission_queryset.first()
 
             if not mission_instance:
                 return Response({"message": "Mission not found."},
                                 status=status.HTTP_404_NOT_FOUND)
 
-            attached_map_data = MapSerializer(mission_instance.map).data
-            attached_deployment_data = DeploymentSerializer(mission_instance.deployment).data
-            attached_fleet_data = FleetSerializer(mission_instance.fleet).data
-            attached_action_data = ActionSerializer(mission_instance.action).data
-
             mission_data = {
                 "message": "Mission Data Listing Successfully",
-                "mission_data": MissionSerializer(mission_instance.mission).data,
-                "attached_map": attached_map_data,
-                "fleet_data": attached_fleet_data,
-                "deployment_data": attached_deployment_data,
-                "action_data": attached_action_data,
+                "mission_data": {
+                    "id": mission_instance.mission.id,
+                    "name": mission_instance.mission.name,
+                    "status": mission_instance.mission.status
+                    # Add other fields from the Mission model as needed
+                },
+                "attached_map": None,
+                "fleet_data": None,
+                "deployment_data": None,
+                "action_data": None,
             }
+
+            if mission_instance.map:
+                mission_data["attached_map"] = {
+                    "id": mission_instance.map.id,
+                    # Add other fields from the Map model as needed
+                }
+
+            if mission_instance.fleet:
+                mission_data["fleet_data"] = {
+                    "id": mission_instance.fleet.id,
+                    # Add other fields from the Fleet model as needed
+                }
+
+            if mission_instance.deployment:
+                mission_data["deployment_data"] = {
+                    "id": mission_instance.deployment.id,
+                    # Add other fields from the Deployment model as needed
+                }
+
+            if mission_instance.action:
+                mission_data["action_data"] = {
+                    "id": mission_instance.action.id,
+                    # Add other fields from the Action model as needed
+                }
 
             return Response(mission_data, status=status.HTTP_200_OK)
         except Mission_Fleet_Map_Deployment_Action.MultipleObjectsReturned:
