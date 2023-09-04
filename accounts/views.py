@@ -2454,7 +2454,6 @@ class GetMissionAPIView(generics.GenericAPIView):
         fleet_id = request.query_params.get('fleet_id')
         customer_id = request.query_params.get('customer_id')
 
-        queryset = Mission.objects.all()
         mission_queryset = Mission_Fleet_Map_Deployment_Action.objects.select_related(
             'mission', 'deployment', 'map', 'fleet', 'action'
         )
@@ -2465,22 +2464,23 @@ class GetMissionAPIView(generics.GenericAPIView):
             if deployment_id:
                 mission_queryset = mission_queryset.filter(deployment_id=deployment_id)
             if mission_id:
-                queryset = queryset.filter(id=mission_id)
+                mission_queryset = mission_queryset.filter(mission_id=mission_id)
             if mission_name:
-                queryset = queryset.filter(name=mission_name)
+                mission_queryset = mission_queryset.filter(mission__name=mission_name)
             if mission_status:
-                queryset = queryset.filter(status=mission_status)
+                mission_queryset = mission_queryset.filter(mission__status=mission_status)
             if customer_id:
-                queryset = queryset.filter(customer_id=customer_id)
+                mission_queryset = mission_queryset.filter(mission__customer_id=customer_id)
 
             mission_instance = mission_queryset.first()
 
             if not mission_instance:
-                return Response({"message": "Mission not found."},
+                return Response({"message": "Mission data not found."},
                                 status=status.HTTP_404_NOT_FOUND)
 
             mission_data = {
                 "message": "Mission Data Listing Successfully",
+                "customer_id": customer_id,
                 "mission_data": {
                     "id": mission_instance.mission.id,
                     "name": mission_instance.mission.name,
@@ -2521,7 +2521,6 @@ class GetMissionAPIView(generics.GenericAPIView):
         except Mission_Fleet_Map_Deployment_Action.MultipleObjectsReturned:
             return Response({"message": "Multiple missions with the provided query parameters."},
                             status=status.HTTP_400_BAD_REQUEST)
-
 
 class DeleteMissionAPIView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
