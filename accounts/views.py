@@ -2480,7 +2480,7 @@ class GetMissionAPIView(generics.GenericAPIView):
 
             mission_data = {
                 "message": "Mission Data Listing Successfully",
-                "customer_id": customer_id,
+                "customer_id": mission_instance.mission.customer_id,
                 "mission_data": {
                     "id": mission_instance.mission.id,
                     "name": mission_instance.mission.name,
