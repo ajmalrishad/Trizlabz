@@ -2575,6 +2575,8 @@ class DashBoardAPIView(generics.GenericAPIView):
                 group_count = UserGroup.objects.count()
 
                 total_count_data = {
+                    "message": " Dashboard Lisetd Successfully",
+                    "status": "Success",
                     "customer_count": customer_count,
                     "user_count": user_count,
                     "deployment_count": deployment_count,
@@ -2599,6 +2601,8 @@ class DashBoardAPIView(generics.GenericAPIView):
                 group_count = User_Groups_Assign.objects.filter(user=uid).count()
 
                 total_count_data = {
+                    "message": " Dashboard Lisetd Successfully",
+                    "status": "Success",
                     "customer_count": customer_count,
                     "user_count": user_count,
                     "deployment_count": deployment_count,
