@@ -97,7 +97,7 @@ urlpatterns = [
     path('api/setup/mission-management/delete-mission/<int:id>', DeleteMissionAPIView.as_view(), name='delete-mission'),
     # Dash Board
     path('api/dashboard', DashBoardAPIView.as_view(), name='dashboard'),
-    #password reset
+    # Password reset
     path('api/forgot_password/', ForgotPasswordView.as_view(), name='forgot_password'),
     path('api/reset_password/', ResetPasswordView.as_view(), name='reset_password'),
 ]

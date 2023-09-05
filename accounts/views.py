@@ -2446,10 +2446,12 @@ class UpdateMissionAPIView(generics.GenericAPIView):
         return Response(response_data, status=status.HTTP_200_OK)
 
 
-class GetMissionAPIView(generics.GenericAPIView):
+class GetMissionAPIView(generics.ListAPIView):
     permission_classes = (IsAuthenticated,)
+    queryset = Mission_Fleet_Map_Deployment_Action.objects.all()
 
-    def get(self, request, *args, **kwargs):
+    def list(self, request, *args, **kwargs):
+        # Get the query parameters
         mission_id = request.query_params.get('mission_id')
         mission_name = request.query_params.get('mission_name')
         mission_status = request.query_params.get('mission_status')
@@ -2457,70 +2459,79 @@ class GetMissionAPIView(generics.GenericAPIView):
         fleet_id = request.query_params.get('fleet_id')
         customer_id = request.query_params.get('customer_id')
 
-        mission_queryset = Mission_Fleet_Map_Deployment_Action.objects.select_related(
-            'mission', 'deployment', 'map', 'fleet', 'action'
-        )
-
-
+        # Filter the queryset based on the provided parameters
+        queryset = self.get_queryset()
         if fleet_id:
-            mission_queryset = mission_queryset.filter(fleet_id=fleet_id)
+            queryset = queryset.filter(fleet_id=fleet_id)
         if deployment_id:
-            mission_queryset = mission_queryset.filter(deployment_id=deployment_id)
+            queryset = queryset.filter(deployment_id=deployment_id)
         if mission_id:
-            mission_queryset = mission_queryset.filter(mission_id=mission_id)
+            queryset = queryset.filter(mission_id=mission_id)
         if mission_name:
-            mission_queryset = mission_queryset.filter(mission__name=mission_name)
+            queryset = queryset.filter(mission__name=mission_name)
         if mission_status:
-            mission_queryset = mission_queryset.filter(mission__status=mission_status)
+            queryset = queryset.filter(mission__status=mission_status)
         if customer_id:
-            mission_queryset = mission_queryset.filter(mission__customer_id=customer_id)
+            queryset = queryset.filter(mission__customer_id=customer_id)
 
-        mission_instance = mission_queryset.first()
+        # Create a dictionary to store mission data
+        mission_data = {}
 
-        if not mission_instance:
-            return Response({"message": "Mission data not found."},
-                            status=status.HTTP_404_NOT_FOUND)
+        for mission_instance in queryset:
+            mission_id = mission_instance.mission.id
 
-        mission_data = {
+            if mission_id not in mission_data:
+                mission_data[mission_id] = {
+                    'mission_id': mission_id,
+                    'mission_name': mission_instance.mission.name,
+                    'mission_status': mission_instance.mission.status,
+                    'customer_id': mission_instance.mission.customer_id,
+                    # Add other fields from the Mission model as needed
+                    'attached_map': set(),  # Use a set to ensure uniqueness
+                    'fleet_data': set(),    # Use a set to ensure uniqueness
+                    'deployment_data': set(),  # Use a set to ensure uniqueness
+                    'action_data': set(),   # Use a set to ensure uniqueness
+                }
+
+            # Add fields from the related models if they exist
+            if mission_instance.map:
+                mission_data[mission_id]["attached_map"].add(
+                    (mission_instance.map.id, mission_instance.map.map_name))
+
+            if mission_instance.fleet:
+                mission_data[mission_id]["fleet_data"].add(
+                    (mission_instance.fleet.id, mission_instance.fleet.name))
+
+            if mission_instance.deployment:
+                mission_data[mission_id]["deployment_data"].add(
+                    (mission_instance.deployment.id, mission_instance.deployment.deployment_name))
+
+            if mission_instance.action:
+                mission_data[mission_id]["action_data"].add(
+                    (mission_instance.action.id, mission_instance.action.name))
+
+        # Convert sets to lists and dictionaries
+        response_data = []
+        for mission_id, data in mission_data.items():
+            mission_data_dict = {
+                'mission_id': data['mission_id'],
+                'mission_name': data['mission_name'],
+                'mission_status': data['mission_status'],
+                'customer_id': data['customer_id'],
+                'attached_map': [{'id': id, 'name': name} for id, name in data['attached_map']],
+                'fleet_data': [{'id': id, 'name': name} for id, name in data['fleet_data']],
+                'deployment_data': [{'id': id, 'name': name} for id, name in data['deployment_data']],
+                'action_data': [{'id': id, 'name': name} for id, name in data['action_data']],
+            }
+            response_data.append(mission_data_dict)
+
+        response = {
             "message": "Mission Data Listing Successfully",
-            "mission_data": {
-                "id": mission_instance.mission.id,
-                "name": mission_instance.mission.name,
-                "status": mission_instance.mission.status,
-                "customer_id": mission_instance.mission.customer_id,
-                # Add other fields from the Mission model as needed
-            },
-            "attached_map": None,
-            "fleet_data": None,
-            "deployment_data": None,
-            "action_data": None,
+            "status": "success",
+            "data": response_data
         }
 
-        if mission_instance.map:
-            mission_data["attached_map"] = {
-                "id": mission_instance.map.id,
-                # Add other fields from the Map model as needed
-            }
-
-        if mission_instance.fleet:
-            mission_data["fleet_data"] = {
-                "id": mission_instance.fleet.id,
-                # Add other fields from the Fleet model as needed
-            }
-
-        if mission_instance.deployment:
-            mission_data["deployment_data"] = {
-                "id": mission_instance.deployment.id,
-                # Add other fields from the Deployment model as needed
-            }
-
-        if mission_instance.action:
-            mission_data["action_data"] = {
-                "id": mission_instance.action.id,
-                # Add other fields from the Action model as needed
-            }
-
-        return Response(mission_data, status=status.HTTP_200_OK)
+        return Response(response, status=status.HTTP_200_OK)
 
 class DeleteMissionAPIView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
