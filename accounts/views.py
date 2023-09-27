@@ -466,7 +466,7 @@ class GetCustomerAPIView(generics.ListAPIView):
         if customer_id:
             customers = self.queryset.filter(id=customer_id)
         # Filter customers based on query parameters
-        if customer_name and customer_status:
+        elif customer_name and customer_status:
             customers = self.queryset.filter(customer_name=customer_name, status=customer_status)
         elif customer_name:
             customers = self.queryset.filter(customer_name=customer_name)
@@ -2575,6 +2575,8 @@ class DashBoardAPIView(generics.GenericAPIView):
                 group_count = UserGroup.objects.count()
 
                 total_count_data = {
+                    "message": " Dashboard Lisetd Successfully",
+                    "status": "Success",
                     "customer_count": customer_count,
                     "user_count": user_count,
                     "deployment_count": deployment_count,
@@ -2599,6 +2601,8 @@ class DashBoardAPIView(generics.GenericAPIView):
                 group_count = User_Groups_Assign.objects.filter(user=uid).count()
 
                 total_count_data = {
+                    "message": " Dashboard Lisetd Successfully",
+                    "status": "Success",
                     "customer_count": customer_count,
                     "user_count": user_count,
                     "deployment_count": deployment_count,
