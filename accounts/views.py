@@ -7,6 +7,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken,AccessToken
 from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import ParseError
+
 
 
 from .models import User, Role, Customer, Variant, Attachment_or_Sensor_Master, Variant_or_Attachment_or_Sensor, Map, \
@@ -1520,6 +1522,8 @@ class GetVehicleAPIView(generics.ListAPIView):
         if deployment_id:
             queryset = queryset.filter(fleet_vehicle_deployment__deployment_id=deployment_id)
 
+        if not any([fleet_id, variant_name, deployment_id, customer_id, vehicle_id, vehicle_label,vehicle_status]):
+            raise ParseError("At least one query parameter is required.")
         return queryset
 
     def list(self, request, *args, **kwargs):
@@ -1533,18 +1537,30 @@ class GetVehicleAPIView(generics.ListAPIView):
 
         for data in serialized_data:
             vehicle_id = data["id"]
+            customer_id = data["customer"]["id"]
+            customer_name = data["customer"]["customer_name"]
             attachment_options = self.get_attachment_options(vehicle_id)
-
+            group_ids = self.get_group_ids_for_vehicle(vehicle_id)
+            
             response_data["data"].append({
                 "id": vehicle_id,
                 "vehicle_label": data["vehicle_label"],
+                "endpoint_id":data["endpoint_id"],
+                "application_id":data["application_id"],
                 "vehicle_variant": data["vehicle_variant"],
                 "vehicle_status": data["vehicle_status"],
-                "customer_id": data["customer"],
+                "customer_id": customer_id,
+                "customer_name": customer_name,
+                "group_id": group_ids,
                 "attachment_options": attachment_options
             })
 
         return Response(response_data, status=status.HTTP_200_OK)
+    
+    def get_group_ids_for_vehicle(self, vehicle_id):
+        group_deployment_vehicle_fleet_customer = Group_Deployment_Vehicle_Fleet_Customer.objects.filter(vehicle_id=vehicle_id)
+        group_ids = [entry.group_id for entry in group_deployment_vehicle_fleet_customer]
+        return group_ids
 
     def get_attachment_options(self, vehicle_id):
         attachment_options = Vehicle_Attachments.objects.filter(vehicle_id=vehicle_id)
@@ -1581,7 +1597,7 @@ class AddFleetAPIView(generics.CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         fleet_data = request.data
-        fleet_name = fleet_data.get('name')
+        fleet_name = fleet_data.get('fleet_name')
         deployment_id = fleet_data.get('deployment_id')
         vehicles_data = fleet_data.get('vehicles', [])
         customer_id = fleet_data.get('customer_id')
@@ -1639,8 +1655,9 @@ class AddFleetAPIView(generics.CreateAPIView):
             "status":"success",
             "data": {
                 "fleet_name": fleet.name,
+                "status": fleet.status,
                 "customer_id": fleet.customer_id,
-                "status": fleet.status
+                "deployment_id": deployment.id,
                 },
             # Include any other fields you want to return
             "attached_vehicles": response_attached_vehicles,
@@ -1653,7 +1670,7 @@ class UpdateFleetAPIView(generics.UpdateAPIView):
 
     def put(self, request, *args, **kwargs):
         fleet_data = request.data
-        fleet_name = fleet_data.get('name')
+        fleet_name = fleet_data.get('fleet_name')
         deployment_id = fleet_data.get('deployment_id')
         vehicles_data = fleet_data.get('vehicles', [])
         customer_id = fleet_data.get('customer_id')
@@ -1719,6 +1736,7 @@ class UpdateFleetAPIView(generics.UpdateAPIView):
 
 
 class GetFleetAPIView(generics.ListAPIView):
+    permission_classes = (IsAuthenticated,)
     serializer_class = FleetSerializer
 
     def get_queryset(self):
@@ -1743,6 +1761,8 @@ class GetFleetAPIView(generics.ListAPIView):
         if user_id:
             queryset = queryset.filter(customer__customer_user__user_id=user_id)
 
+        if not any([fleet_id, fleet_name, deployment_id, customer_id, fleet_status, user_id]):
+            raise ParseError("At least one query parameter is required.")
         return queryset
 
     def list(self, request, *args, **kwargs):
@@ -1750,23 +1770,35 @@ class GetFleetAPIView(generics.ListAPIView):
         data = []
 
         for fleet in queryset:
+            fleet_vehicle_deployments = Fleet_Vehicle_Deployment.objects.filter(fleet=fleet)
+            attached_vehicles = []
+
+            for deployment in fleet_vehicle_deployments:
+                vehicle = deployment.vehicle
+                attached_vehicles.append({
+                    "vehicle_id": vehicle.id,
+                    "vehicle_label": vehicle.vehicle_label
+                })
+
             fleet_data = {
-                "fleet_id": fleet.id,
+                "id": fleet.id,
                 "fleet_name": fleet.name,
-                "deployment_id": Fleet_Vehicle_Deployment.objects.filter(fleet=fleet).first().deployment.id
-                if Fleet_Vehicle_Deployment.objects.filter(fleet=fleet).first() else None,
-                "fleet_status": fleet.status,
-                "vehicles": [f.vehicle.vehicle_label for f in Fleet_Vehicle_Deployment.objects.filter(fleet=fleet)]
+                "status": fleet.status,
+                "customer_id": fleet.customer_id,
+                "deployment_id": fleet_vehicle_deployments.first().deployment.id
+                if fleet_vehicle_deployments.first() else None,
+                "attached_vehicles": attached_vehicles
             }
             data.append(fleet_data)
 
         response_data = {
-            "message": "fleet details listed successfully",
+            "message": "Fleet details listed successfully",
             "status": "success",
             "data": data
         }
 
         return Response(response_data)
+        
 class DeleteFleetAPIView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
     queryset = Fleet.objects.all()
