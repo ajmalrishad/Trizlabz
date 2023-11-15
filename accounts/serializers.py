@@ -274,6 +274,8 @@ class VehicleAttachmentSerializer(serializers.ModelSerializer):
 
 class VehicleSerializer(serializers.ModelSerializer):
     attachment_option = Attachment_SensorSerializer(many=True, read_only=True)
+    customer = CustomerSerializer() 
+
 
     class Meta:
         model = Vehicle
