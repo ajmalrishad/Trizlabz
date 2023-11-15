@@ -11,6 +11,8 @@ class Customer(models.Model):
     profile_image = models.URLField(blank=True)
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
+    country = models.CharField(max_length=100)
+    pin = models.CharField(max_length=50)
     phone = models.CharField(max_length=20)
     mobile = models.CharField(max_length=20)
     spoc = models.CharField(max_length=100)

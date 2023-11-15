@@ -1,0 +1,30 @@
+# Ignore Python bytecode files
+__pycache__/
+
+# Ignore database files
+db.sqlite3
+
+# Ignore media files (user-uploaded content)
+media/
+
+# Ignore static files (collected static files)
+static/
+
+# Ignore logs
+logs/
+
+# Ignore environment-specific settings (e.g., .env or .env.local)
+.env*
+
+# Ignore editor/IDE-specific files (e.g., .vscode/ or .idea/)
+.vscode/
+.idea/
+
+# Ignore any sensitive or secret files
+secret_key.txt
+
+myenv/
+.pyc
+
+accounts/migrations/0001_initial.py
+accounts/migrations/
