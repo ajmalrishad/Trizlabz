@@ -1595,73 +1595,65 @@ class DeleteVehicleAPIView(generics.GenericAPIView):
 class AddFleetAPIView(generics.CreateAPIView):
     permission_classes = (IsAuthenticated,)
     def post(self, request, *args, **kwargs):
-        fleet_data = request.data
-        fleet_name = fleet_data.get('fleet_name')
-        deployment_id = fleet_data.get('deployment_id')
-        vehicles_data = fleet_data.get('vehicles', [])
-        customer_id = fleet_data.get('customer_id')
-
-        # Validate deployment
         try:
-            deployment = Deployment.objects.get(id=deployment_id)
-        except Deployment.DoesNotExist:
-            return Response({"deployment_id": "Invalid Deployment ID."}, status=status.HTTP_400_BAD_REQUEST)
+            fleet_data = request.data
+            fleet_name = fleet_data.get('fleet_name')
+            deployment_id = fleet_data.get('deployment_id')
+            vehicles_data = fleet_data.get('vehicles', [])
+            customer_id = fleet_data.get('customer_id')
 
-        # Validate customer
-        try:
-            customer_instance = Customer.objects.get(id=customer_id)
-        except Customer.DoesNotExist:
-            return Response({"customer_id": f"Customer with ID {customer_id} does not exist."},
-                            status=status.HTTP_400_BAD_REQUEST)
+            # Validate deployment
+            deployment = Deployment.objects.filter(id=deployment_id).first()
+            if not deployment:
+                return Response({"deployment_id": "Invalid Deployment ID."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Ensure fleet_name is not None or empty
-        if not fleet_name:
-            return Response({"fleet_name": "Fleet name cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Check if fleet with the same name exists
-        # fleet = Fleet.objects.filter(name=fleet_name).first()
-        if Fleet.objects.filter(name=fleet_name):
-            return Response({"fleet_name": "Fleet name already exsist."}, status=status.HTTP_208_ALREADY_REPORTED)
-
-        if Fleet.objects.filter(name=fleet_name):
-            # If fleet exists, update it
-            fleet.name = fleet_name  # You can assign other fields as well
-        else:
-            # If fleet doesn't exist, create a new one
-            fleet = Fleet(name=fleet_name, customer=customer_instance)  # Assign customer_id
-
-        fleet.save()  # Save the fleet
-
-        # Handle vehicles
-        response_attached_vehicles = []
-        for vehicle in vehicles_data:
-            vehicle_id = vehicle.get('id')
-            try:
-                vehicle_instance = Vehicle.objects.get(id=vehicle_id)
-            except Vehicle.DoesNotExist:
-                return Response({"vehicles": f"Vehicle with ID {vehicle_id} does not exist."},
+            # Validate customer
+            customer = Customer.objects.filter(id=customer_id).first()
+            if not customer:
+                return Response({"customer_id": f"Customer with ID {customer_id} does not exist."},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            Fleet_Vehicle_Deployment.objects.create(fleet=fleet, vehicle=vehicle_instance, deployment=deployment)
+            # Ensure fleet_name is not None or empty
+            if not fleet_name:
+                return Response({"fleet_name": "Fleet name cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
 
-            response_attached_vehicles.append({
-                "vehicle_id": vehicle_instance.id,
-                "vehicle_label": vehicle_instance.vehicle_label,
-            })
+            # Check if fleet with the same name exists
+            if Fleet.objects.filter(name=fleet_name).exists():
+                return Response({"fleet_name": "Fleet name already exists."}, status=status.HTTP_208_ALREADY_REPORTED)
 
-        response_data = {
-            "message": "Fleet Added Successfully",
-            "status":"success",
-            "data": {
-                "fleet_name": fleet.name,
-                "status": fleet.status,
-                "customer_id": fleet.customer_id,
-                "deployment_id": deployment.id,
+            # Handle vehicles
+            attached_vehicles = []
+            for data in vehicles_data:
+                vehicle_id = data.get('id')  # Change this to match the actual field name in your Vehicle model
+                try:
+                    vehicle_instance = Vehicle.objects.get(id=vehicle_id)
+                    if vehicle_instance.vehicle_status == 1:
+                        attached_vehicles.append(vehicle_instance)
+                except Vehicle.DoesNotExist:
+                    return Response({"vehicles": f"Vehicle with ID {vehicle_id} does not exist."},
+                                    status=status.HTTP_404_NOT_FOUND)
+
+            # Create fleet and link vehicles and deployment
+            fleet = Fleet.objects.create(name=fleet_name, customer=customer)
+            for vehicle_instance in attached_vehicles:
+                Fleet_Vehicle_Deployment.objects.create(fleet=fleet, vehicle=vehicle_instance, deployment=deployment)
+
+            response_data = {
+                "message": "Fleet Added Successfully",
+                "status": "success",
+                "data": {
+                    "fleet_name": fleet.name,
+                    "status": fleet.status,
+                    "customer_id": fleet.customer_id,
+                    "deployment_id": deployment.id,
                 },
-            # Include any other fields you want to return
-            "attached_vehicles": response_attached_vehicles,
-        }
-        return Response(response_data, status=status.HTTP_201_CREATED)
+                "attached_vehicles": [{"vehicle_id": v.id, "vehicle_label": v.vehicle_label} for v in attached_vehicles],
+            }
+
+            return Response(response_data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({'error': f"Error: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class UpdateFleetAPIView(generics.UpdateAPIView):
     permission_classes = (IsAuthenticated,)
@@ -1706,7 +1698,7 @@ class UpdateFleetAPIView(generics.UpdateAPIView):
         for vehicle_data in vehicles_data:
             vehicle_id = vehicle_data.get('id')
             try:
-                vehicle_instance = Vehicle.objects.get(id=vehicle_id,vehicle_status=True)
+                vehicle_instance = Vehicle.objects.get(id=vehicle_id, vehicle_status=True)
             except Vehicle.DoesNotExist:
                 return Response({"vehicles": f"Vehicle with ID {vehicle_id} does not exist."},
                                 status=status.HTTP_400_BAD_REQUEST)
