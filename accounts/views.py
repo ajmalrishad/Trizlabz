@@ -8,6 +8,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken,AccessToken
 from rest_framework.permissions import AllowAny
 from rest_framework.exceptions import ParseError
+from django.db import transaction
 
 
 
@@ -1679,49 +1680,43 @@ class UpdateFleetAPIView(generics.UpdateAPIView):
             return Response({"fleet_name": f"Fleet with name {fleet_name} already exists."},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # Update fleet data
-        fleet.name = fleet_name
-        fleet.customer_id = customer_id
-        fleet.save()
-
         # Fetch deployment instance
         try:
             deployment = Deployment.objects.get(id=deployment_id)
         except Deployment.DoesNotExist:
             return Response({"deployment_id": "Invalid Deployment ID."},
                             status=status.HTTP_400_BAD_REQUEST)
-
-        # Create new Fleet_Vehicle_Deployment relationships
-        # Clear existing relationships
-        Fleet_Vehicle_Deployment.objects.filter(fleet=fleet).delete()
-
+        active_vehicles = []
         for vehicle_data in vehicles_data:
             vehicle_id = vehicle_data.get('id')
             try:
                 vehicle_instance = Vehicle.objects.get(id=vehicle_id, vehicle_status=True)
+                active_vehicles.append(vehicle_instance)
             except Vehicle.DoesNotExist:
                 return Response({"vehicles": f"Vehicle with ID {vehicle_id} does not exist."},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            # Create new Fleet_Vehicle_Deployment relationship for each vehicle
-            Fleet_Vehicle_Deployment.objects.create(fleet=fleet, deployment=deployment, vehicle=vehicle_instance)
-
-        # Fetch the updated fleet instance
-        updated_fleet = Fleet.objects.get(pk=fleet.pk)
-
+        # Create new Fleet_Vehicle_Deployment relationship for each vehicle
+        with transaction.atomic():
+            # Update fleet data
+            fleet.name = fleet_name
+            fleet.customer_id = customer_id
+            fleet.save()
+            Fleet_Vehicle_Deployment.objects.filter(fleet=fleet).delete()
+            for vehicle in active_vehicles:
+                Fleet_Vehicle_Deployment.objects.create(fleet=fleet, deployment=deployment, vehicle=vehicle)
         # Construct the response data
         response_data = {
             'message': "Fleet details updated successfully",
             "status": "Success",
             "data": {
-                "name": updated_fleet.name,
+                "name": fleet.name,
                 "deployment_id": deployment_id,
                 "customer_id": customer_id,
                 "vehicles": vehicles_data,
             },
         }
         return Response(response_data, status=status.HTTP_200_OK)
-
 class GetFleetAPIView(generics.ListAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = FleetSerializer
