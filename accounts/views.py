@@ -26,7 +26,6 @@ from .serializers import RegisterSerializer, LoginSerializer, GetUserSerializer,
 class RegisterView(generics.GenericAPIView):
     serializer_class = RegisterSerializer
     permission_classes = (IsAuthenticated,)
-
     def post(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
@@ -135,7 +134,6 @@ class LoginAPIView(generics.GenericAPIView):
 # logout user
 class LogoutAPIView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
-
     def post(self, request, *args, **kwargs):
         refresh_token = self.request.data.get('refresh_token')
 
@@ -154,7 +152,6 @@ class LogoutAPIView(generics.GenericAPIView):
 class GetUsersAPIView(generics.GenericAPIView):
     serializer_class = GetUserSerializer
     permission_classes = (IsAuthenticated,)
-
     def get_queryset(self):
         user_id = self.request.query_params.get('user_id')
         customer_id = self.request.query_params.get('customer_id')
@@ -226,7 +223,6 @@ class GetUsersAPIView(generics.GenericAPIView):
 class UpdateUsersAPIView(generics.GenericAPIView):
     serializer_class = UpdateUserSerializer
     permission_classes = (IsAuthenticated,)
-
     def get_user(self, user_id):
         try:
             return User.objects.get(id=user_id)
@@ -304,7 +300,6 @@ class DeleteUsersAPIView(generics.GenericAPIView):
     serializer_class = DeleteUserSerializer
 
     permission_classes = (IsAuthenticated,)
-
     def delete(self, request, id):
         try:
             user = User.objects.get(id=id)
@@ -319,7 +314,6 @@ class DeleteUsersAPIView(generics.GenericAPIView):
 class CreateRoleView(generics.GenericAPIView):
     serializer_class = RoleSerializer
     permission_classes = (IsAuthenticated,)
-
     def post(self, request):
         serializer = RoleSerializer(data=request.data)
         if serializer.is_valid():
@@ -353,7 +347,6 @@ class RoleUpdateView(generics.UpdateAPIView):
     serializer_class = RoleSerializer
 
     permission_classes = (IsAuthenticated,)
-
     def put(self, request, role_id):
         try:
             role = Role.objects.get(id=role_id)
@@ -374,7 +367,6 @@ class RoleUpdateView(generics.UpdateAPIView):
 
 class RoleDeleteView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
-
     def delete(self, request, role_id):
         try:
             role = Role.objects.get(id=role_id)
@@ -518,7 +510,6 @@ class UpdateCustomerAPIView(generics.UpdateAPIView):
 
 class DeleteCustomerAPIView(generics.DestroyAPIView):
     permission_classes = (IsAuthenticated,)
-
     def delete(self, request, id):
         try:
             customer = Customer.objects.get(id=id)
@@ -542,7 +533,6 @@ class DeleteCustomerAPIView(generics.DestroyAPIView):
 # Attachment or Sensor
 class Attachment_Sensor(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
-
     def post(self, request):
         attachment_or_sensor = self.request.data.get('attachment_or_sensor')
         name = self.request.data.get('name')
@@ -608,7 +598,6 @@ class Attachment_Sensor(generics.GenericAPIView):
 
 class GetAttachment_SensorAPIView(generics.ListAPIView):
     permission_classes = (IsAuthenticated,)
-
     def get(self, request, *args, **kwargs):
         # Get query parameters
         attachment_sensor_id = self.request.query_params.get('attachment_sensor_id')
@@ -689,7 +678,6 @@ class GetAttachment_SensorAPIView(generics.ListAPIView):
 
 class UpdateAttachmentAPIView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
-
     def put(self, request, id):
         try:
             attachment_or_sensor = Attachment_or_Sensor_Master.objects.get(attachment_sensor_id=id)
@@ -710,7 +698,6 @@ class UpdateAttachmentAPIView(generics.GenericAPIView):
 
 class DeleteAttachment_SensorAPIView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
-
     def delete(self, request):
         attachment_sensor_id = self.request.query_params.get('id')
 
@@ -953,7 +940,6 @@ class UpdateVariantAPIView(generics.UpdateAPIView):
 
 class DeleteVariantAPIView(generics.DestroyAPIView):
     permission_classes = (IsAuthenticated,)
-
     def delete(self, request, variant_id):
         try:
             variant = Variant.objects.get(variant_id=variant_id)
@@ -969,7 +955,6 @@ class DeleteVariantAPIView(generics.DestroyAPIView):
 
 class AddMapCreateView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
-
     def post(self, request, *args, **kwargs):
         customer_id = request.data.get('customer_id')
         map_name = request.data.get('map_name')
@@ -1075,7 +1060,6 @@ class UpdateMapAPIView(generics.UpdateAPIView):
 
 class DeleteMapAPIView(generics.DestroyAPIView):
     permission_classes = (IsAuthenticated,)
-
     def delete(self, request, id):
         try:
             map = Map.objects.get(id=id)
@@ -1308,7 +1292,6 @@ class GetDeploymentAPIView(generics.ListAPIView):
 
 class DeleteDeploymentAPIView(generics.DestroyAPIView):
     permission_classes = (IsAuthenticated,)
-
     def delete(self, request, id):
         try:
             deployment = Deployment.objects.get(id=id)
@@ -1323,7 +1306,6 @@ class DeleteDeploymentAPIView(generics.DestroyAPIView):
 # Vehicle Management
 class AddVehicleAPIView(generics.CreateAPIView):
     permission_classes = (IsAuthenticated,)
-
     def post(self, request, *args, **kwargs):
         data = request.data
         attachment_options_data = data.get('attachment_option', [])
@@ -1747,11 +1729,17 @@ class GetFleetAPIView(generics.ListAPIView):
             raise ParseError("At least one query parameter is required.")
         return queryset
 
+
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         data = []
+        fleet_ids_set = set()
 
         for fleet in queryset:
+            # Check if fleet ID is already in the set, skip if True
+            if fleet.id in fleet_ids_set:
+                continue
+
             fleet_vehicle_deployments = Fleet_Vehicle_Deployment.objects.filter(fleet=fleet)
             attached_vehicles = []
 
@@ -1773,6 +1761,9 @@ class GetFleetAPIView(generics.ListAPIView):
             }
             data.append(fleet_data)
 
+            # Add fleet ID to the set
+            fleet_ids_set.add(fleet.id)
+
         response_data = {
             "message": "Fleet details listed successfully",
             "status": "success",
@@ -1780,7 +1771,8 @@ class GetFleetAPIView(generics.ListAPIView):
         }
 
         return Response(response_data)
-        
+
+
 class DeleteFleetAPIView(generics.GenericAPIView):
     permission_classes = (IsAuthenticated,)
     queryset = Fleet.objects.all()
@@ -2540,17 +2532,17 @@ class DashBoardAPIView(generics.GenericAPIView):
         if user.is_authenticated:  # True
 
             if user.is_superuser:
-                customer_count = Customer.objects.count()
+                customer_count = Customer.objects.filter(customer_status=True).count()
 
-                user_count = User.objects.exclude(is_superuser=1).count()
+                user_count = User.objects.filter(is_active=True).exclude(is_superuser=True).count()
 
-                fleet_count = Fleet.objects.count()
+                fleet_count = Fleet.objects.filter(status=True).count()
 
-                deployment_count = Deployment.objects.count()
+                deployment_count = Deployment.objects.filter(deployment_status=True).count()
 
-                vehicle_count = Vehicle.objects.count()
+                vehicle_count = Vehicle.objects.filter(vehicle_status=True).count()
 
-                group_count = UserGroup.objects.count()
+                group_count = UserGroup.objects.filter(status=True).count()
 
                 total_count_data = {
                     "message": " Dashboard Lisetd Successfully",
@@ -2568,13 +2560,13 @@ class DashBoardAPIView(generics.GenericAPIView):
 
                 customer_count = Customer_User.objects.filter(user=uid).count()
 
-                user_count = User.objects.filter(id=uid).count()
+                user_count = User.objects.filter(id=uid, is_active=True).count()
 
-                fleet_count = Fleet.objects.filter(customer__customer_user__user_id=uid).count()
+                fleet_count = Fleet.objects.filter(customer__customer_user__user_id=uid, status=True).count()
 
-                deployment_count = Deployment.objects.filter(customer__customer_user__user_id=uid).count()
+                deployment_count = Deployment.objects.filter(customer__customer_user__user_id=uid, deployment_status=True).count()
 
-                vehicle_count = Vehicle.objects.filter(customer__customer_user__user_id=uid).count()
+                vehicle_count = Vehicle.objects.filter(customer__customer_user__user_id=uid, vehicle_status=True).count()
 
                 group_count = User_Groups_Assign.objects.filter(user=uid).count()
 
@@ -2594,13 +2586,13 @@ class DashBoardAPIView(generics.GenericAPIView):
 
                 customer_count = Customer_User.objects.filter(user=uid).count()
 
-                user_count = User.objects.filter(id=uid).count()
+                user_count = User.objects.filter(id=uid, is_active =True).count()
 
-                fleet_count = Fleet.objects.filter(customer__customer_user__user_id=uid).count()
+                fleet_count = Fleet.objects.filter(customer__customer_user__user_id=uid, status=True).count()
 
-                deployment_count = Deployment.objects.filter(customer__customer_user__user_id=uid).count()
+                deployment_count = Deployment.objects.filter(customer__customer_user__user_id=uid, deployment_status=True).count()
 
-                vehicle_count = Vehicle.objects.filter(customer__customer_user__user_id=uid).count()
+                vehicle_count = Vehicle.objects.filter(customer__customer_user__user_id=uid, vehicle_status=True).count()
 
                 group_count = User_Groups_Assign.objects.filter(user=uid).count()
 
