@@ -166,7 +166,7 @@ class Map(models.Model):
     map_name = models.CharField(max_length=255, unique=True)
     map_description = models.CharField(max_length=255, null=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    map_layout = models.URLField()
+    map_layout = models.JSONField()
     path_layout = models.JSONField()
     map_status = models.BooleanField(default=True)
     created_by = models.IntegerField(null=True)
