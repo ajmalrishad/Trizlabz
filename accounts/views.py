@@ -133,19 +133,21 @@ class LoginAPIView(generics.GenericAPIView):
 
 # logout user
 class LogoutAPIView(generics.GenericAPIView):
-    permission_classes = (IsAuthenticated,)
-    def post(self, request, *args, **kwargs):
-        refresh_token = self.request.data.get('refresh_token')
+    permission_classes = [IsAuthenticated]
 
-        if refresh_token:
-            try:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-                return Response({"status": "User logged out successfully"})
-            except TokenError as e:
-                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response({"detail": "No refresh token provided"}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
+        refresh_token = request.data.get('refresh')
+
+        if not refresh_token:
+            return Response({'detail': 'Refresh token is required for logout.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Blacklist the refresh token to invalidate it
+            RefreshToken(refresh_token).blacklist()
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({'message': 'Successfully logged out.'}, status=status.HTTP_200_OK)
 
 
 # get all users
