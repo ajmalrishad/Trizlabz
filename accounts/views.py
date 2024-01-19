@@ -2221,6 +2221,7 @@ class AddMissionAPIView(generics.GenericAPIView):
         fleets_data = data.get('fleets', [])
         deployments_data = data.get('deployments', [])
         action_data = data.get('actions', [])
+        mission_details = data.get('mission_details')
 
         # Check if a mission with the same name already exists
         if Mission.objects.filter(name=mission_name).exists():
@@ -2280,7 +2281,7 @@ class AddMissionAPIView(generics.GenericAPIView):
                     action_obj = Action.objects.get(id=action_id)
                 except Action.DoesNotExist:
                     return Response({"message": "Invalid Action ID"}, status=status.HTTP_400_BAD_REQUEST)
-                mission = Mission.objects.create(name=mission_name, customer=customer)
+                mission = Mission.objects.create(name=mission_name, customer=customer,mission_details=mission_details)
                 Mission_Fleet_Map_Deployment_Action.objects.create(
                     mission=mission,
                     action=action_obj,
@@ -2298,6 +2299,7 @@ class AddMissionAPIView(generics.GenericAPIView):
             "mission_name": mission.name,
             "mission_status": mission.status,
             "customer_id": customer_id,
+            "mission_details": mission_details,
         })
 
         response_data = {
@@ -2334,6 +2336,7 @@ class UpdateMissionAPIView(generics.GenericAPIView):
         fleets_data = data.get('fleets', [])
         deployments_data = data.get('deployments', [])
         action_data = data.get('actions', [])
+        mission_details = data.get('mission_details')
 
         if customer_id and not Customer.objects.filter(id=customer_id).exists():
             return Response({'message': 'Customer with ID {} does not exist'.format(customer_id)},
@@ -2396,6 +2399,7 @@ class UpdateMissionAPIView(generics.GenericAPIView):
             data.map_id = map_obj
             data.fleet_id = fleet_obj
             data.mission_id = mission
+            data.mission_details = mission_details
             data.save()
         # Prepare the response data
         mission_data = {
@@ -2403,6 +2407,7 @@ class UpdateMissionAPIView(generics.GenericAPIView):
             "mission_name": mission.name,
             "mission_status": mission.status,
             "customer_id": customer_id,
+            "mission_details": mission_details,
             # Include any other fields you want to include in the response.
         }
 
@@ -2458,6 +2463,7 @@ class GetMissionAPIView(generics.ListAPIView):
                     'mission_name': mission_instance.mission.name,
                     'mission_status': mission_instance.mission.status,
                     'customer_id': mission_instance.mission.customer_id,
+                    'mission_details': mission_instance.mission.mission_details,
                     # Add other fields from the Mission model as needed
                     'attached_map': set(),  # Use a set to ensure uniqueness
                     'fleet_data': set(),    # Use a set to ensure uniqueness
@@ -2490,6 +2496,7 @@ class GetMissionAPIView(generics.ListAPIView):
                 'mission_name': data['mission_name'],
                 'mission_status': data['mission_status'],
                 'customer_id': data['customer_id'],
+                'mission_details': data['mission_details'],
                 'attached_map': [{'id': id, 'name': name} for id, name in data['attached_map']],
                 'fleet_data': [{'id': id, 'name': name} for id, name in data['fleet_data']],
                 'deployment_data': [{'id': id, 'name': name} for id, name in data['deployment_data']],
