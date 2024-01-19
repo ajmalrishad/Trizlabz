@@ -1,6 +1,12 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+from django.utils.translation import gettext as _
+
+from .managers import CustomUserManager
+
 
 
 # Create your models here.
@@ -88,7 +94,12 @@ class User(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
 
+    REQUIRED_FIELDS = ('email','phone')
 
+    objects = CustomUserManager()
+
+    def __str__(self):
+        return self.email
     def tokens(self):
         refresh = RefreshToken.for_user(self)
         return {
@@ -166,7 +177,7 @@ class Map(models.Model):
     map_name = models.CharField(max_length=255, unique=True)
     map_description = models.CharField(max_length=255, null=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    map_layout = models.URLField()
+    map_layout = models.JSONField()
     path_layout = models.JSONField()
     map_status = models.BooleanField(default=True)
     created_by = models.IntegerField(null=True)
