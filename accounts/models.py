@@ -1,12 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth.models import AbstractUser
-from django.db import models
-from django.utils.translation import gettext as _
 
 from .managers import CustomUserManager
-
 
 
 # Create your models here.
@@ -290,6 +286,7 @@ class Group_Deployment_Vehicle_Fleet_Customer(models.Model):
 # Action Management
 class Action(models.Model):
     name = models.CharField(max_length=255, blank=False, unique=True)
+    action_unit = models.TextField()
     status = models.BooleanField(default=True)
     created_by = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -305,6 +302,7 @@ class Action(models.Model):
 class Mission(models.Model):
     name = models.CharField(max_length=255, blank=False, unique=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    mission_details = models.JSONField()
     status = models.BooleanField(default=True)
     created_by = models.IntegerField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -4,16 +4,7 @@ from rest_framework_simplejwt.views import (
 )
 
 from . import views
-from .views import LogoutAPIView, UpdateUsersAPIView, DeleteUsersAPIView, CreateRoleView, RoleUpdateView, \
-    RoleDeleteView, GetRoleAPIView, CustomerCreateView, GetCustomerAPIView, UpdateCustomerAPIView, \
-    DeleteCustomerAPIView, AddVariantCreateView, GetVariantAPIView, UpdateVariantAPIView, DeleteVariantAPIView, \
-    Attachment_Sensor, GetAttachment_SensorAPIView, UpdateAttachmentAPIView, DeleteAttachment_SensorAPIView, \
-    AddMapCreateView, GetMapListAPIView, UpdateMapAPIView, DeleteMapAPIView, AddDeploymentCreateView, \
-    UpdateDeploymentView, GetDeploymentAPIView, DeleteDeploymentAPIView, AddVehicleAPIView, UpdateVehicleAPIView, \
-    GetVehicleAPIView, DeleteVehicleAPIView, AddFleetAPIView, UpdateFleetAPIView, GetFleetAPIView, DeleteFleetAPIView, \
-    AddGroupAPIView, UpdateGroupAPIView, GetGroupAPIView, DeleteGroupAPIView, AddActionAPIView, UpdateActionAPIView, \
-    GetActionAPIView, DeleteActionAPIView, AddMissionAPIView, UpdateMissionAPIView, GetMissionAPIView, \
-    DeleteMissionAPIView, DashBoardAPIView, ForgotPasswordView, ResetPasswordView
+from .views import *
 
 urlpatterns = [
     # User Management
