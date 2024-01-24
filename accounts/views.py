@@ -2342,6 +2342,8 @@ class UpdateMissionAPIView(generics.GenericAPIView):
             return Response({'message': 'Customer with ID {} does not exist'.format(customer_id)},
                             status=status.HTTP_400_BAD_REQUEST)
         mission.name = mission_name
+        mission.mission_details = mission_details
+        mission.customer_id = customer_id
         mission.save()
 
         # Loop through the maps data and update related objects
