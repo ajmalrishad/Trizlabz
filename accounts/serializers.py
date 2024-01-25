@@ -104,8 +104,9 @@ class RegisterSerializer(serializers.ModelSerializer):
 class LoginSerializer(serializers.ModelSerializer):
     password = serializers.CharField(max_length=68, min_length=6, write_only=True)
     username = serializers.CharField(max_length=255, min_length=3)
-    role = serializers.CharField(read_only=True)  # Assuming 'role' is a field in your User model
+    role = serializers.CharField(read_only=True)
     tokens = serializers.SerializerMethodField()
+    customer_id = serializers.ListField(write_only=True, required=False)
 
     def validate(self, attrs):
         username = attrs.get('username')
@@ -122,21 +123,13 @@ class LoginSerializer(serializers.ModelSerializer):
         else:
             raise AuthenticationFailed('Invalid credentials, try again')
 
-    def get_tokens(self, obj):
-        user = User.objects.get(username=obj['username'])
-
-        return {
-            'refresh': user.tokens()['refresh'],
-            'access': user.tokens()['access']
-        }
-
     def get_role(self, obj):
         return obj.role
         # return user.obj.role
 
     class Meta:
         model = User
-        fields = ['username', 'password', 'role', 'tokens']
+        fields = ['username', 'password', 'role', 'tokens','customer_id']
 
 
 class GetUserSerializer(serializers.ModelSerializer):

@@ -114,16 +114,17 @@ class LoginAPIView(generics.GenericAPIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
+        customer_id = Customer_User.objects.get(user=user.id)
+        customer = customer_id
 
         message = "User logged in successfully"
         response_data = {
             'message': message,
             'data': {
                 'username': user.username,
-                # 'role': user.role,
-                'role': user.role_id,
+                'role_id': user.role_id,
                 'trizlabz_user': user.trizlabz_user,
-                'cloud_username': user.cloud_username,
+                'customer_id': customer.customer_id,
                 'token': user.tokens(),
             }
         }
