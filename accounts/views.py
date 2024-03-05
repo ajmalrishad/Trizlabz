@@ -114,16 +114,19 @@ class LoginAPIView(generics.GenericAPIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
+        try:
+            customer_id = Customer_User.objects.get(user=user.id).customer_id
+        except Customer_User.DoesNotExist:
+            customer_id = None
 
         message = "User logged in successfully"
         response_data = {
             'message': message,
             'data': {
                 'username': user.username,
-                # 'role': user.role,
-                'role': user.role_id,
+                'role_id': user.role_id,
                 'trizlabz_user': user.trizlabz_user,
-                'cloud_username': user.cloud_username,
+                'customer_id': customer_id,
                 'token': user.tokens(),
             }
         }
@@ -1216,27 +1219,24 @@ class GetDeploymentAPIView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Deployment.objects.all()
 
+        # Retrieve query parameters from the request
         deployment_id = self.request.query_params.get('deployment_id')
         deployment_name = self.request.query_params.get('deployment_name')
         deployment_status = self.request.query_params.get('deployment_status')
         customer_id = self.request.query_params.get('customer_id')
         user_id = self.request.query_params.get('user_id')
 
+        # Filter queryset based on query parameters
         if deployment_id:
             queryset = queryset.filter(id=deployment_id)
-
         if deployment_name:
-            queryset = queryset.filter(deployment_name__iexact=deployment_name)
-
-        if deployment_status:
-            queryset = queryset.filter(deployment_status__iexact=deployment_status)
-
-        # Filter by customer_id and user_id
-        if customer_id:
-            queryset = queryset.filter(deployment_maps__customer_id=customer_id)
-
-        if user_id:
-            queryset = queryset.filter(deployment_maps__user_id=user_id)
+            queryset = queryset.filter(deployment_name=deployment_name)
+        if deployment_status is not None:
+            queryset = queryset.filter(deployment_status=deployment_status)
+        if customer_id is not None:
+            queryset = queryset.filter(customer_id=customer_id)
+        if user_id is not None:
+            queryset = queryset.filter(customer__customer_user__user_id=user_id)
 
         return queryset
 
@@ -1251,19 +1251,15 @@ class GetDeploymentAPIView(generics.ListAPIView):
 
         for data in serialized_data:
             deployment_id = data["id"]
-            deployment_name = data["deployment_name"]
-            deployment_status = data["deployment_status"]
             attached_maps = self.get_attached_maps(deployment_id)
-            customer_ids = self.get_customer_ids(deployment_id)
-            user_ids = self.get_user_ids(deployment_id)
 
             response_data["data"].append({
                 "id": deployment_id,
-                "deployment_name": deployment_name,
-                "deployment_status": deployment_status,
+                "customer_id": data["customer_id"],
+                "user_id": data["user_id"],
+                "deployment_name": data["deployment_name"],
+                "deployment_status": data["deployment_status"],
                 "list_of_maps_attached": attached_maps,
-                "customer_id": customer_ids,
-                "user_id": user_ids
             })
 
         return Response(response_data, status=status.HTTP_200_OK)
@@ -1279,17 +1275,7 @@ class GetDeploymentAPIView(generics.ListAPIView):
         ]
         return serialized_maps
 
-    def get_customer_ids(self, deployment_id):
-        # customer_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list('customer_id', flat=True)
-        customer_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list( flat=True)
 
-        return list(customer_ids)
-
-    def get_user_ids(self, deployment_id):
-        # user_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list('user_id', flat=True)
-        user_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list( flat=True)
-
-        return list(user_ids)
 
 
 class DeleteDeploymentAPIView(generics.DestroyAPIView):
@@ -2342,6 +2328,8 @@ class UpdateMissionAPIView(generics.GenericAPIView):
             return Response({'message': 'Customer with ID {} does not exist'.format(customer_id)},
                             status=status.HTTP_400_BAD_REQUEST)
         mission.name = mission_name
+        mission.mission_details = mission_details
+        mission.customer_id = customer_id
         mission.save()
 
         # Loop through the maps data and update related objects
