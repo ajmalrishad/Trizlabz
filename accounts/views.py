@@ -1219,27 +1219,24 @@ class GetDeploymentAPIView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Deployment.objects.all()
 
+        # Retrieve query parameters from the request
         deployment_id = self.request.query_params.get('deployment_id')
         deployment_name = self.request.query_params.get('deployment_name')
         deployment_status = self.request.query_params.get('deployment_status')
         customer_id = self.request.query_params.get('customer_id')
         user_id = self.request.query_params.get('user_id')
 
+        # Filter queryset based on query parameters
         if deployment_id:
             queryset = queryset.filter(id=deployment_id)
-
         if deployment_name:
-            queryset = queryset.filter(deployment_name__iexact=deployment_name)
-
-        if deployment_status:
-            queryset = queryset.filter(deployment_status__iexact=deployment_status)
-
-        # Filter by customer_id and user_id
-        if customer_id:
-            queryset = queryset.filter(deployment_maps__customer_id=customer_id)
-
-        if user_id:
-            queryset = queryset.filter(deployment_maps__user_id=user_id)
+            queryset = queryset.filter(deployment_name=deployment_name)
+        if deployment_status is not None:
+            queryset = queryset.filter(deployment_status=deployment_status)
+        if customer_id is not None:
+            queryset = queryset.filter(customer_id=customer_id)
+        if user_id is not None:
+            queryset = queryset.filter(customer__customer_user__user_id=user_id)
 
         return queryset
 
@@ -1254,19 +1251,15 @@ class GetDeploymentAPIView(generics.ListAPIView):
 
         for data in serialized_data:
             deployment_id = data["id"]
-            deployment_name = data["deployment_name"]
-            deployment_status = data["deployment_status"]
             attached_maps = self.get_attached_maps(deployment_id)
-            customer_ids = self.get_customer_ids(deployment_id)
-            user_ids = self.get_user_ids(deployment_id)
 
             response_data["data"].append({
                 "id": deployment_id,
-                "deployment_name": deployment_name,
-                "deployment_status": deployment_status,
+                "customer_id": data["customer_id"],
+                "user_id": data["user_id"],
+                "deployment_name": data["deployment_name"],
+                "deployment_status": data["deployment_status"],
                 "list_of_maps_attached": attached_maps,
-                "customer_id": customer_ids,
-                "user_id": user_ids
             })
 
         return Response(response_data, status=status.HTTP_200_OK)
@@ -1282,17 +1275,7 @@ class GetDeploymentAPIView(generics.ListAPIView):
         ]
         return serialized_maps
 
-    def get_customer_ids(self, deployment_id):
-        # customer_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list('customer_id', flat=True)
-        customer_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list( flat=True)
 
-        return list(customer_ids)
-
-    def get_user_ids(self, deployment_id):
-        # user_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list('user_id', flat=True)
-        user_ids = Deployment_Maps.objects.filter(deployment_id=deployment_id).values_list( flat=True)
-
-        return list(user_ids)
 
 
 class DeleteDeploymentAPIView(generics.DestroyAPIView):

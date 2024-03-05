@@ -228,11 +228,18 @@ class MapSerializer(serializers.ModelSerializer):
 
 class DeploymentSerializer(serializers.ModelSerializer):
     map_id = MapSerializer(many=True, read_only=True)
-    customer = CustomerSerializer(read_only=True)
+    customer_id = serializers.PrimaryKeyRelatedField(source='customer', read_only=True)
+    user_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Deployment
-        fields = '__all__'
+        fields = ['id', 'deployment_name', 'deployment_status', 'customer_id', 'map_id', 'user_id']
+
+    def get_user_id(self, obj):
+        try:
+            return Customer_User.objects.get(customer_id=obj.customer_id).user_id
+        except Customer_User.DoesNotExist:
+            return None
 
 
 class AttachmentOptionSerializer(serializers.ModelSerializer):
